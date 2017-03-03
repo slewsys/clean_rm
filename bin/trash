@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+#
+require 'clean_rm'
+require 'clean_rm/cli'
+
+$script_name  = File.basename(__FILE__)
+
+cli = CleanRm::CLI.new()
+
+filenames = cli.parse_opts(ARGV)
+request = cli.option
+
+CleanRm::Trashcan.new(filenames, request, :Console) do |trash|
+  if request[:list]
+    trash.list
+    exit
+  elsif request[:empty]
+    trash.empty
+    exit
+  elsif filenames.empty?
+    cli.parse_opts(%w[--help])
+    exit
+  elsif request[:whiteout]
+    trash.restore
+  else
+    trash.transfer
+  end
+end
