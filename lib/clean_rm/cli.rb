@@ -85,12 +85,6 @@ module CleanRm
           @option.merge!(recursive: true, directory: false)
         end
 
-        opts.on("-S", "--shift",
-                "Shift files onto revision stack
-                                     (intended for internal use only).") do
-          @option[:shift] = true
-        end
-
         opts.on("-W", "--whiteout",
                 "Restore deleted file(s) to current
                                      directory.") do

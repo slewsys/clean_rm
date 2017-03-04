@@ -2,7 +2,10 @@ require 'io/console'
 
 module Console
 
-  alias_method :respond, :puts
+  def respond(*args)
+    puts(args)
+    false
+  end
 
   def confirm(action, file, default = 'n')
 
@@ -20,7 +23,7 @@ module Console
     ch = $stdin.getch(min: 1).codepoints.first
 
     case ch
-    when *['y', 'Y'].map(&:ord)
+    when *['y', 'Y', ].map(&:ord)
       puts "#{ch.chr}"
       true
     when *['n', 'N'].map(&:ord)

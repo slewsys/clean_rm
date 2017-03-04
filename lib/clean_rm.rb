@@ -1,5 +1,6 @@
 require 'etc'
 require 'fileutils'
+require 'shellwords'
 
 $have_sys_filesystem =
   begin
@@ -67,7 +68,7 @@ module CleanRm
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
-          expand_toplevel(@filenames.empty? ? ['*'] : @filenames).each do |file|
+          expand_toplevel(@filenames).each do |file|
             if (! @request[:interactive] ||
                 confirm('Permanently delete', file))
               FileUtils.rm_rf(file, secure: true)
@@ -87,12 +88,15 @@ module CleanRm
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
-          unless (toplevel_files = expand_toplevel(@filenames.empty? ? ['*']
-                                                   : @filenames)).empty?
+          unless (toplevel_files = expand_toplevel(@filenames)).empty?
             respond "#{trash_dir}:"
-            IO.popen([LS, '-ald', *toplevel_files],
+
+            # If any toplevel_files have dash (-) prefix, LS
+            # interprets them as command-line switches. Therefore,
+            # prefixed these with `./' and remove prefix in output.
+            IO.popen([LS, '-ald', *toplevel_files.map { |f| './' + f }],
                      :err => [:child, :out]) do |io|
-              respond io.readlines
+              respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
             end
             count += toplevel_files.size
           end
@@ -106,17 +110,9 @@ module CleanRm
     def restore()
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
-
-        # Expand filenames relative to trash_dir.
-        Dir.chdir(trash_dir) do
-          expand_toplevel(@filenames.empty? ? ['*'] : @filenames)
-        end.each do |file|
-
-          # Handle overwriting of existing file.
-          next if File.exists?(file) && make_revision(file).nil?
-
-          pop_revision(file, trash_dir)
-          count += 1
+        Dir.chdir(trash_dir) { expand_toplevel(@filenames) }.each do |file|
+          next if File.exists?(file) && ! shift_revision(file)
+          count += pop_revision(file, trash_dir)
         end
       end
       count
@@ -127,26 +123,8 @@ module CleanRm
     def transfer()
       count = 0
       expand_fileglobs(@filenames).each do |file|
-        if ! File.writable?(dirname = File.dirname(file))
-          respond "#{$script_name}: #{dirname}: Permission denied"
-        elsif ! File.writable?(file) && ! @request[:force] &&
-            ! File.symlink?(file)
-          respond "#{$script_name}: #{file}: Use -f to override permissions"
-        elsif File.directory?(file) && ! @request[:recursive] &&
-            ! @request[:directory]
-          respond "#{$script_name}: #{file}: Use -r or -d for directories"
-        elsif File.directory?(file) && @request[:directory] &&
-            ! Dir.empty?(file)
-          respond "#{$script_name}: #{file}: Directory not empty"
-        elsif @request[:shift]
-          shift_revision(file)
-        elsif @request[:permanent]
-          unlink(file)
-          count += 1
-        else
-          push_revision(file)
-          count += 1
-        end
+        next if ! have_transfer_permission(file)
+        count += @request[:permanent] ? unlink(file) : push_revision(file)
       end
       count
     end
@@ -158,7 +136,7 @@ module CleanRm
     def age(file)
       unless (revs = Dir.glob(File.basename(file, ".*") + ".#*#*")).empty?
 
-        # Set FILE's atime directly to oldest.
+        # Set FILE's atime to older than oldest revision.
         oldest_atime = revs.map { |f| File.stat(f).atime.to_i }.sort.first
         File.utime(Time.at(oldest_atime - 1), File.stat(file).mtime, file)
       end
@@ -186,38 +164,26 @@ module CleanRm
     def expand_toplevel(filenames)
 
       # Limit expansion to top-level files.
-      Dir.glob(filenames, File::FNM_EXTGLOB).uniq
+      Dir.glob(filenames.empty? ? ['*'] : filenames, File::FNM_EXTGLOB).uniq
       .map { |fn| File.basename(fn) }
       .reject { |fn| fn == '.' || fn == '..' }
     end
 
-    # Call $script_name recursively to move overwritten FILE to trashcan.
-    def make_revision(file)
-
-      # Confirm overwriting existing during recovery even if not
-      # @request[:interative].
-      if (@request[:force] || confirm('Overwrite existing', file))
-
-        # Call script recursively - rather than calling shift_revision() -
-        # for file checks provided by delete().
-        resp = []
-        IO.popen([$0, '-rfS', file], :err => [:child, :out]) do |io|
-          resp = io.readlines
-        end
-
-        # Unable to trash existing...
-        if $?.exitstatus > 0
-          respond "#{resp.join("\n")}"
-          return nil
-        end
-
-        # Overwriting existing requires option `-f'.
+    def have_transfer_permission(file)
+      if ! File.writable?(dirname = File.dirname(file))
+        respond "#{$script_name}: #{dirname}: Permission denied"
+      elsif ! File.writable?(file) && ! @request[:force] &&
+          ! File.symlink?(file)
+        respond "#{$script_name}: #{file}: Use -f to override permissions"
+      elsif File.directory?(file) && ! @request[:recursive] &&
+          ! @request[:directory]
+        respond "#{$script_name}: #{file}: Use -r or -d for directories"
+      elsif File.directory?(file) && @request[:directory] &&
+          ! Dir.empty?(file)
+        respond "#{$script_name}: #{file}: Directory not empty"
       else
-        respond "#{$script_name}: #{file}: Use -f to overwrite"
-        return nil
+        true
       end
-
-      file
     end
 
     def mount_point(file)
@@ -230,8 +196,8 @@ module CleanRm
 
     # Push FILE to top of revision stack (FILO).
     def push_revision(file)
-      if (@request[:force] ||
-          ! @request[:interactive] ||
+      count = 0
+      if (@request[:force] || ! @request[:interactive] ||
           confirm('Move to trash', file))
         trash_dir = trashcan(file)
         basename = File.basename(file)
@@ -240,13 +206,17 @@ module CleanRm
             if File.exists?(basename)
         end
         FileUtils.mv(file, File.join(trash_dir, basename))
+        count = 1
       end
+      count
     rescue Exception => err
       respond "#{$script_name}: #{revision}: #{err.message}"
+      0
     end
 
     # Pop FILE from top of revision stack (FILO).
     def pop_revision(file, trash_dir)
+      count = 0
       FileUtils.mv(File.join(trash_dir, file), file)
       Dir.chdir(trash_dir) do
 
@@ -256,20 +226,29 @@ module CleanRm
           rev = revs.sort_by { |f| test(?A, f) }.last
           FileUtils.mv(rev, file)
         end
+        count = 1
       end
+      count
     rescue Exception => err
       respond "#{$script_name}: #{file}: #{err.message}"
+      0
     end
 
     # Shift FILE to end (bottom) of revision stack (FILO).
+    # Returns false on error or user-cancel.
     def shift_revision(file)
-      trash_dir = trashcan(file)
-      rev = Dir.chdir(trash_dir) do
-        unique_name(File.basename(file))
-      end
-      FileUtils.mv(file, File.join(trash_dir, rev))
-      Dir.chdir(trash_dir) do
-        age(rev)
+
+      # Confirm overwriting even if not @request[:interative].
+      if ((@request[:force] || confirm('Overwrite existing', file)) &&
+          have_transfer_permission(file))
+        trash_dir = trashcan(file)
+        rev = Dir.chdir(trash_dir) do
+          unique_name(File.basename(file))
+        end
+        FileUtils.mv(file, File.join(trash_dir, rev))
+        Dir.chdir(trash_dir) do
+          age(rev)
+        end
       end
     rescue Exception => err
       respond "#{$script_name}: #{file}: #{err.message}"
@@ -297,6 +276,7 @@ module CleanRm
 
     # Skip trashcan and permanently delete FILE.
     def unlink(file)
+      count = 0
       if (@request[:force] ||
           ! @request[:interactive] ||
           confirm('Permanently delete', file))
@@ -306,9 +286,12 @@ module CleanRm
           if @request[:overwrite] && File.ftype(file) == "file"
 
         FileUtils.rm_rf(file, secure: true)
+        count = 1
       end
+      count
     rescue Exception => err
       respond "#{$script_name}: #{file}: #{err.message}"
+      0
     end
 
   end
