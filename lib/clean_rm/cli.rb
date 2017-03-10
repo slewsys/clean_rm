@@ -102,7 +102,7 @@ module CleanRm
         # Version.
         opts.on_tail("-V", "--version",
                      "Show version, then exit.") do
-          puts "#{$script_name.capitalize} #{VERSION}"
+          puts "#{$script_name.capitalize} #{CleanRm::VERSION}"
           exit
         end
       end.parse(argv)

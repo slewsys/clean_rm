@@ -1,6 +1,5 @@
 require 'etc'
 require 'fileutils'
-require 'shellwords'
 
 $have_sys_filesystem =
   begin
@@ -208,10 +207,10 @@ module CleanRm
         FileUtils.mv(file, File.join(trash_dir, basename))
         count = 1
       end
-      count
     rescue Exception => err
       respond "#{$script_name}: #{revision}: #{err.message}"
-      0
+    ensure
+      count
     end
 
     # Pop FILE from top of revision stack (FILO).
@@ -228,10 +227,10 @@ module CleanRm
         end
         count = 1
       end
-      count
     rescue Exception => err
       respond "#{$script_name}: #{file}: #{err.message}"
-      0
+    ensure
+      count
     end
 
     # Shift FILE to end (bottom) of revision stack (FILO).
@@ -288,10 +287,10 @@ module CleanRm
         FileUtils.rm_rf(file, secure: true)
         count = 1
       end
-      count
     rescue Exception => err
       respond "#{$script_name}: #{file}: #{err.message}"
-      0
+    ensure
+      count
     end
 
   end

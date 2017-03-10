@@ -1,0 +1,23 @@
+Usage: trash [-dfilPpRrW] [FILE] ...
+       trash -e [-fiPRr]
+Options:
+    -d, --directory                  Remove directories as well as other
+                                     file types.
+    -e, --empty                      Empty contents of trashcan (permanently).
+    -f, --force                      Force, i.e., ignore warnings and without
+                                     prompting. The -f option overrides any
+                                     previous -i options.
+    -i, --interactive                Prompt for confirmation before removing.
+                                     The -i option overrides any previous -f
+                                     options.
+    -l, --list                       List trashcan contents.
+    -p, --permanent                  Permanently remove.
+    -P, --overwrite                  Overwrite regular files before deleting.
+                                     The -P option implies option -p.
+    -R                               Recursively remove directory hierarchies.
+                                     The -R option supersedes option -d.
+    -r, --recursive                  Equivalent to option -R.
+    -W, --whiteout                   Restore deleted file(s) to current
+                                     directory.
+    -h, --help                       Display this message, then exit.
+    -V, --version                    Show version, then exit.

@@ -9,8 +9,10 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Andrew L. Moore"]
   spec.email         = ["SlewSys@gmail.com"]
 
-  spec.summary       = %q{Filesystem trash manager.}
-  spec.description   = %q{See README.md.}
+  spec.summary       = %q{Library for managing filesystem trash.}
+  spec.description   = %q{Library for managing filesystem trash. Previously "deleted" versions of a file can be restored in reverse order of deletion. Each restore iteration replaces the current file with an older version, until the original file is restored.
+
+Command-line utility `trash' is intended as a cross-platform, option-compatible alternative to the Unix `rm(1)' command.}
   spec.homepage      = "https://github.com/slewsys/ruby/clean_rm"
   spec.license       = "MIT"
 
@@ -27,12 +29,13 @@ Gem::Specification.new do |spec|
     f.match(%r{^(test|spec|features)/})
   end
   spec.bindir        = "bin"
-  spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
+  spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
   spec.add_dependency "sys-filesystem", "~> 1.1"
 
   spec.add_development_dependency "bundler", "~> 1.14"
-  spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "rake", "~> 12.0"
+  spec.add_development_dependency "rspec-expectations", "~> 3.6.0.beta2"
+  spec.add_development_dependency "rspec", "~> 3.6.0.beta2"
 end

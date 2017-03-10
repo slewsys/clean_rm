@@ -5,8 +5,8 @@ __CleanRm__ is a Ruby library for managing filesystem trash. Previously
 deletion. Each restore iteration replaces the current file with an older
 version, until the original file is restored.
 
-The command-line utility, `trash` (described below), offers a safe
-alternative to the Unix `rm(1)` command.
+Command-line utility `trash` (described below) is intended as a
+cross-platform, option-compatible alternative to the Unix `rm(1)` command.
 
 ## System Requirements
 
@@ -59,7 +59,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/slewsys/clean_rm. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
+Bug reports and pull requests are welcome on GitHub at https://github.com/slewsys/ruby/clean_rm. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
 
 ## License
