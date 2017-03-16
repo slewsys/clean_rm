@@ -1,4 +1,5 @@
 require 'etc'
+require 'find'
 require 'fileutils'
 
 $have_sys_filesystem =
@@ -25,10 +26,7 @@ module CleanRm
     attr_reader :request
     attr_reader :per_device_trashcan
 
-    def initialize(filenames = [], request = {}, ui_module = :Console)
-
-      @filenames           = filenames
-      @request             = request
+    def initialize(ui_module = :Console)
       @uid                 = Etc.getpwnam(Etc.getlogin).uid
       @trashcan_topdir     = File.join(TRASHES, @uid.to_s)
       @home_trashcan       = File.join(Dir.home, TRASH)
@@ -62,28 +60,29 @@ module CleanRm
     end
 
     # Permanently delete @FILENAMES from trashcans. If @FILENAMES is
-    # empty, delete entire contents of all trashcans.
-    def empty()
+    # empty, delete contents of all trashcans.
+    def empty(filenames, request = {})
+      @filenames = filenames
+      @request = request
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
           expand_toplevel(@filenames).each do |file|
-            if (! @request[:interactive] ||
-                confirm('Permanently delete', file))
-              FileUtils.rm_rf(file, secure: true)
-              count += 1
-            end
+            count += unlink(file)
           end
         end
       end
-      count
     rescue Exception => err
       respond "#{$script_name}: empty: #{err.message}"
+    ensure
+      count
     end
 
     # List @FILENAMES in trashcans. If @FILENAMES is empty, list entire
     # contents of all trashcans.
-    def list()
+    def list(filenames, request = {})
+      @filenames = filenames
+      @request = request
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
@@ -92,7 +91,7 @@ module CleanRm
 
             # If any toplevel_files have dash (-) prefix, LS
             # interprets them as command-line switches. Therefore,
-            # prefixed these with `./' and remove prefix in output.
+            # prefix these with `./' and then filter `./' on output.
             IO.popen([LS, '-ald', *toplevel_files.map { |f| './' + f }],
                      :err => [:child, :out]) do |io|
               respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
@@ -101,12 +100,17 @@ module CleanRm
           end
         end
       end
+    rescue Exception => err
+      respond "#{$script_name}: list: #{err.message}"
+    ensure
       respond "Trashcan is empty." if count.zero?
       count
     end
 
     # Restore @FILENAMES from trashcans to current directory.
-    def restore()
+    def restore(filenames, request = {})
+      @filenames = filenames
+      @request = request
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) { expand_toplevel(@filenames) }.each do |file|
@@ -114,17 +118,25 @@ module CleanRm
           count += pop_revision(file, trash_dir)
         end
       end
+    rescue Exception => err
+      respond "#{$script_name}: restore: #{err.message}"
+    ensure
       count
     end
 
-    # `Delete' FILE either by moving it to trashcan(FILE), or if -p
-    # option is given, by unlinking it.
-    def transfer()
+    # `Delete' @FILENAMES by either moving them to trashcan(FILE) or,
+    # if option -p is given, by unlinking them.
+    def transfer(filenames, request = {})
+      @filenames = filenames
+      @request = request
       count = 0
       expand_fileglobs(@filenames).each do |file|
         next if ! have_transfer_permission(file)
         count += @request[:permanent] ? unlink(file) : push_revision(file)
       end
+    rescue Exception => err
+      respond "#{$script_name}: transfer: #{err.message}"
+    ensure
       count
     end
 
@@ -233,6 +245,12 @@ module CleanRm
       count
     end
 
+    # Return string of SIZE random bytes.
+    def random_bytes(size)
+      @random ||= Random.new
+      size.times.map { @random.rand(256) }.pack("C" * size)
+    end
+
     # Shift FILE to end (bottom) of revision stack (FILO).
     # Returns false on error or user-cancel.
     def shift_revision(file)
@@ -265,7 +283,7 @@ module CleanRm
         trash_dir : @home_trashcan
     end
 
-    # Return FILE with timestamp + 3-digit index appended.
+    # Return name of FILE with timestamp + 3-digit index appended.
     def unique_name(file)
       unique = file + ".##{File.stat(file).mtime}#"
       index = Dir.glob(unique + "-*").sort.last
@@ -273,7 +291,7 @@ module CleanRm
       unique += "-%03d" % ((revision.to_i + 1) % 1000)
     end
 
-    # Skip trashcan and permanently delete FILE.
+    # Permanently delete FILE.
     def unlink(file)
       count = 0
       if (@request[:force] ||
@@ -281,8 +299,17 @@ module CleanRm
           confirm('Permanently delete', file))
 
         # Only overwrite "regular" files.
-        IO.write(file, IO.read("/dev/random", File.size(file))) \
-          if @request[:overwrite] && File.ftype(file) == "file"
+        if @request[:overwrite]
+          case File.ftype(file)
+          when "file"
+            IO.write(file, random_bytes(File.size(file)))
+          when "directory"
+            Find.find(file) do |path|
+              IO.write(path, random_bytes(File.size(path))) \
+                if File.file?(path)
+            end
+          end
+        end
 
         FileUtils.rm_rf(file, secure: true)
         count = 1

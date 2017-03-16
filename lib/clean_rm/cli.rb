@@ -26,7 +26,7 @@ module CleanRm
     def parse_opts(argv)
       OptionParser.new do |opts|
         opts.banner = "Usage: #{$script_name} [-dfilPpRrW] [FILE] ...\n"
-        opts.banner += "       #{$script_name} -e [-fiPRr]\n"
+        opts.banner += "       #{$script_name} -e [-fiP] [FILE] ...\n"
         opts.separator "Options:"
 
         opts.on("-d", "--directory",

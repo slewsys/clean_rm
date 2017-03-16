@@ -10,19 +10,16 @@ cli = CleanRm::CLI.new()
 filenames = cli.parse_opts(ARGV)
 request = cli.option
 
-CleanRm::Trashcan.new(filenames, request, :Console) do |trash|
+CleanRm::Trashcan.new(:Console) do |trash|
   if request[:list]
-    trash.list
-    exit
+    trash.list(filenames, request)
   elsif request[:empty]
-    trash.empty
-    exit
+    trash.empty(filenames, request)
   elsif filenames.empty?
     cli.parse_opts(%w[--help])
-    exit
   elsif request[:whiteout]
-    trash.restore
+    trash.restore(filenames, request)
   else
-    trash.transfer
+    trash.transfer(filenames, request)
   end
 end

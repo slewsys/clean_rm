@@ -1,5 +1,5 @@
 Usage: trash [-dfilPpRrW] [FILE] ...
-       trash -e [-fiPRr]
+       trash -e [-fiP] [FILE] ...
 Options:
     -d, --directory                  Remove directories as well as other
                                      file types.

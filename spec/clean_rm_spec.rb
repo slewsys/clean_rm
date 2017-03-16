@@ -40,13 +40,13 @@ RSpec.describe CleanRm do
     end
 
     it 'lists trashcan contents' do
-      expect { trash '-l' }.to output_matching(/[rwx-]+ 1 .* 1/)
+      expect { trash '-l' }.to output_matching(/[rwx-]+\s+1\s.*\s1/)
     end
 
     it 'versions transferred files' do
       File.write('1', Time.now)
       expect { trash '1' }.to output_nothing
-      expect { trash '-l' }.to output_matching(/[rwx-]+ 1 .* 1.#.*#-\d{3}/)
+      expect { trash '-l' }.to output_matching(/[rwx-]+\s+1\s.*\s1.#.*#-\d{3}/)
     end
 
     it 'restores transferred files' do
@@ -81,7 +81,7 @@ RSpec.describe CleanRm do
     end
   end
 
-  context 'versioning transfers' do
+  context 'restoring versions' do
     before {
       trash '-ef'
       oldest =   Time.now.to_s
