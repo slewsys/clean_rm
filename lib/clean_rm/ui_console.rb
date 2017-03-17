@@ -4,6 +4,11 @@ module Console
 
   def respond(*args)
     puts(args)
+  end
+
+  def error(*args)
+    $err_status = 1
+    puts "#{$script_name}: #{args.join(' ')}"
     false
   end
 

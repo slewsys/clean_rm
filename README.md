@@ -3,65 +3,68 @@
 __CleanRm__ is a Ruby library for managing filesystem trash. Previously
 "deleted" versions of a file can be restored in reverse order of
 deletion. Each restore iteration replaces the current file with an older
-version, until the original file is restored.
+version until there are no more, then the newest version is restored again.
 
 Command-line utility `trash` (described below) is intended as a
 cross-platform, option-compatible alternative to the Unix `rm(1)` command.
 
 ## System Requirements
 
-The file revision stack (FILO) depends on file-access time, which
-should work with any filesystem implementing POSIX `stat(2)` system
-call.
+The file revision stack (FILO) depends on file-access time, as defined
+by POSIX `stat(2)` system call.
 
-Device mount-point information is provided by Rubygem
-__sys-filesystem__, an FFI interface to `getmntent(3)`/`getmntinfo(3)`.
+Device mount-points are provided by Rubygem __sys-filesystem__, an FFI
+interface to system-dependent, though generally available, library
+interfaces `getmntent(3)`/`getmntinfo(3)`.
 
-To display trashcan contents, a POSIX-compatible `ls(1)` command is expected
-(see `Trashcan::LS`).
+To display trashcan contents, a POSIX-compatible `ls(1)` command is expected.
+Its path is defined by constant `Trashcan::LS`.
 
-## Notes
-
-## Installation
-
-Add this line to your application's Gemfile:
-
-```ruby
-gem 'clean_rm'
-```
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install clean_rm
-
-Per-device trashcans are recommended and used if available.
-These must be created separately and are expected to be of the form:
-
+Per-device trashcans are recommended and used if available. These must
+be created separately and are defined in `Trashcan#trashcan()` to be of
+the form:
 
 _mount-point_`/.Trashes/`_user-id_,
 
 where _mount-point_ is device's filesystem root, and _user-id_
 is provided by the POSIX `getuid(2)` system call.
 
-## Usage
+## Command-line Interface
 
-TODO: Write usage instructions here
-
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```
+Usage: trash [-dfiPpRrW] FILE ...
+       trash -e [-fiP] [FILE] ...
+       trash -l [FILE] ...
+Options:
+    -d, --directory    Transfer empty directories as well as other file types
+                       to the trashcan.
+    -e, --empty        Purge FILEs from trashcan so that they can no longer be
+                       restored. If FILE is not given, purge entire trashcan
+                       contents.
+    -f, --force        Force - i.e., ignore warnings and without prompting.
+                       The -f option overrides any previous -i options.
+    -h, --help         Show this message, then exit.
+    -i, --interactive  Prompt for confirmation before transfering each FILE.
+                       The -i option overrides any previous -f options.
+    -l, --list         List any FILEs in trashcan. If no FILE is given, list
+                       entire trashcan contents.
+    -P, --overwrite    Overwrite regular FILEs before purging. The -P option
+                       implies option -p.
+    -p, --purge        Purge FILEs so that they cannot be restored.
+    -R, --recursive    Recursively transfer directory hierarchies to the
+                       trashcan. The -R option supersedes option -d.
+    -r                 Equivalent to option -R.
+    -V, --version      Show version, then exit.
+    -v, --verbose      Report diagnostics.
+    -W, --whiteout     Restore FILEs in trashcan to working directory.
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/slewsys/ruby/clean_rm. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
-
+Bug reports and pull requests can be sent to
+[GitHub clean_rm](https://github.com/slewsys/ruby/clean_rm).
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
+This Rubygem is free software. It can be used and redistributed under
+the terms of the [MIT License](http://opensource.org/licenses/MIT).

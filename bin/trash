@@ -3,7 +3,8 @@
 require 'clean_rm'
 require 'clean_rm/cli'
 
-$script_name  = File.basename(__FILE__)
+$script_name = File.basename(__FILE__)
+$err_status  = 0
 
 cli = CleanRm::CLI.new()
 
@@ -23,3 +24,5 @@ CleanRm::Trashcan.new(:Console) do |trash|
     trash.transfer(filenames, request)
   end
 end
+
+exit $err_status

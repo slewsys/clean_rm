@@ -19,8 +19,8 @@ RSpec.describe CleanRm do
       expect { trash '-ef' }.to output_nothing
     end
 
-    it 'says trashcan is empty with option -l' do
-      expect { trash '-l' }.to output_contents_of('trashcan-empty.txt')
+    it 'says nothing if trashcan empty with option -l' do
+      expect { trash '-l' }.to output_nothing
     end
 
     it 'complains about non-existent files' do

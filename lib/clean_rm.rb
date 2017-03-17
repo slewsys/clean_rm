@@ -6,19 +6,14 @@ $have_sys_filesystem =
   begin
     require 'sys/filesystem'
   rescue LoadError => err
-    warn(err.message)
+    warn err.message
     false
   end
 
 module CleanRm
   class Trashcan
 
-    if RbConfig::CONFIG['target_os'] =~ /linux/
-      LS    =  '/usr/bin/ls'
-    else
-      LS    = '/bin/ls'
-    end
-
+    LS = RbConfig::CONFIG['target_os'] =~ /darwin/ ? '/bin/ls' : '/usr/bin/ls'
     TRASH   = '.Trash'
     TRASHES = '.Trashes'
 
@@ -35,8 +30,8 @@ module CleanRm
       if ! Dir.exists?(@home_trashcan)
         begin
           Dir.mkdir(@home_trashcan, 0700)
-        rescue SystemCallError => errmsg
-          raise SystemCallError, errmsg
+        rescue SystemCallError => err
+          raise SystemCallError, err.message
         end
       elsif ! File.writable?(@home_trashcan)
         raise SystemCallError, "#{@home_trashcan}: Permission denied"
@@ -53,7 +48,7 @@ module CleanRm
         Sys::Filesystem.mounts.map(&:mount_point).each { |dir| trashcan(dir) } :
         trashcan(Dir.home)
 
-      # Include ui_module to expose `confirm' and `respond' methods...
+      # Include ui_module to expose `confirm', `respond' and `error' methods...
       self.class.include(Object.const_get ui_module)
 
       yield(self) if block_given?
@@ -72,9 +67,6 @@ module CleanRm
           end
         end
       end
-    rescue Exception => err
-      respond "#{$script_name}: empty: #{err.message}"
-    ensure
       count
     end
 
@@ -87,23 +79,30 @@ module CleanRm
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
           unless (toplevel_files = expand_toplevel(@filenames)).empty?
-            respond "#{trash_dir}:"
 
             # If any toplevel_files have dash (-) prefix, LS
             # interprets them as command-line switches. Therefore,
             # prefix these with `./' and then filter `./' on output.
-            IO.popen([LS, '-ald', *toplevel_files.map { |f| './' + f }],
-                     :err => [:child, :out]) do |io|
-              respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
+            begin
+              IO.popen([LS, '-ald', *toplevel_files.map { |f| './' + f }],
+                       :err => [:child, :out]) do |io|
+                respond "#{trash_dir}:"
+                respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
+              end
+              count += toplevel_files.size
+            rescue SystemCallError => err
+              case err
+              when Errno::ENOENT
+                error "#{LS}: No such file or directory"
+              else
+                raise
+              end
             end
-            count += toplevel_files.size
           end
         end
       end
-    rescue Exception => err
-      respond "#{$script_name}: list: #{err.message}"
-    ensure
-      respond "Trashcan is empty." if count.zero?
+      error "#{@filenames.join(', ')}: No such file or directory" \
+        if count.zero? && ! @filenames.empty?
       count
     end
 
@@ -118,9 +117,6 @@ module CleanRm
           count += pop_revision(file, trash_dir)
         end
       end
-    rescue Exception => err
-      respond "#{$script_name}: restore: #{err.message}"
-    ensure
       count
     end
 
@@ -134,9 +130,6 @@ module CleanRm
         next if ! have_transfer_permission(file)
         count += @request[:permanent] ? unlink(file) : push_revision(file)
       end
-    rescue Exception => err
-      respond "#{$script_name}: transfer: #{err.message}"
-    ensure
       count
     end
 
@@ -149,10 +142,17 @@ module CleanRm
 
         # Set FILE's atime to older than oldest revision.
         oldest_atime = revs.map { |f| File.stat(f).atime.to_i }.sort.first
-        File.utime(Time.at(oldest_atime - 1), File.stat(file).mtime, file)
+        begin
+          File.utime(Time.at(oldest_atime - 1), File.stat(file).mtime, file)
+        rescue SystemCallError => err
+          case err
+          when Errno::EPERM
+            error "#{file}: Operation not permitted"
+          else
+            raise
+          end
+        end
       end
-    rescue Exception => err
-      respond "#{$script_name}: age: #{err.message}"
     end
 
     def expand_fileglobs(filenames)
@@ -166,7 +166,7 @@ module CleanRm
         if ! files.empty?
           expanded += files
         elsif ! @request[:force]
-          respond "#{$script_name}: #{file}: No such file or directory"
+          error "#{file}: No such file or directory"
         end
       end
       expanded
@@ -181,17 +181,19 @@ module CleanRm
     end
 
     def have_transfer_permission(file)
-      if ! File.writable?(dirname = File.dirname(file))
-        respond "#{$script_name}: #{dirname}: Permission denied"
+      if @request[:force]
+        true
+      elsif ! File.writable?(dirname = File.dirname(file))
+        error "#{dirname}: Permission denied"
       elsif ! File.writable?(file) && ! @request[:force] &&
           ! File.symlink?(file)
-        respond "#{$script_name}: #{file}: Use -f to override permissions"
+        error "#{file}: Use -f to override permissions"
       elsif File.directory?(file) && ! @request[:recursive] &&
           ! @request[:directory]
-        respond "#{$script_name}: #{file}: Use -r or -d for directories"
+        error "#{file}: Use -r or -d for directories"
       elsif File.directory?(file) && @request[:directory] &&
           ! Dir.empty?(file)
-        respond "#{$script_name}: #{file}: Directory not empty"
+        error "#{file}: Directory not empty"
       else
         true
       end
@@ -199,8 +201,8 @@ module CleanRm
 
     def mount_point(file)
       $have_sys_filesystem ? Sys::Filesystem.mount_point(file) : '/'
-    rescue Exception => err
-      respond "#{$script_name}: mount_point: #{err.message}" \
+    rescue StandardError => err
+      message "#{$script_name}: mount_point: #{err.message}" \
         if @request[:verbose]
       '/'
     end
@@ -216,19 +218,35 @@ module CleanRm
           FileUtils.mv(basename, unique_name(basename)) \
             if File.exists?(basename)
         end
-        FileUtils.mv(file, File.join(trash_dir, basename))
-        count = 1
+        begin
+          FileUtils.mv(file, File.join(trash_dir, basename))
+          count = 1
+        rescue SystemCallError => err
+          case err
+          when Errno::EACCES
+            error "#{file}: Permission denied"
+          else
+            raise
+          end
+        end
       end
-    rescue Exception => err
-      respond "#{$script_name}: #{revision}: #{err.message}"
-    ensure
       count
     end
 
     # Pop FILE from top of revision stack (FILO).
     def pop_revision(file, trash_dir)
       count = 0
-      FileUtils.mv(File.join(trash_dir, file), file)
+      begin
+        FileUtils.mv(File.join(trash_dir, file), file)
+        count = 1
+      rescue SystemCallError => err
+        case err
+        when Errno::EACCES
+          error "#{File.writable?(Dir.pwd) ? file : '.'}: Permission denied"
+        else
+          raise
+        end
+      end
       Dir.chdir(trash_dir) do
 
         # If previous revisions (i.e., `file.#*#*') exist, then use
@@ -237,11 +255,7 @@ module CleanRm
           rev = revs.sort_by { |f| test(?A, f) }.last
           FileUtils.mv(rev, file)
         end
-        count = 1
       end
-    rescue Exception => err
-      respond "#{$script_name}: #{file}: #{err.message}"
-    ensure
       count
     end
 
@@ -252,23 +266,31 @@ module CleanRm
     end
 
     # Shift FILE to end (bottom) of revision stack (FILO).
-    # Returns false on error or user-cancel.
+    # Returns nil if error or user-cancel.  Otherwise true.
     def shift_revision(file)
 
       # Confirm overwriting even if not @request[:interative].
-      if ((@request[:force] || confirm('Overwrite existing', file)) &&
-          have_transfer_permission(file))
+      if ((@request[:force] || have_transfer_permission(file) &&
+           confirm('Overwrite existing', file)))
         trash_dir = trashcan(file)
         rev = Dir.chdir(trash_dir) do
           unique_name(File.basename(file))
         end
-        FileUtils.mv(file, File.join(trash_dir, rev))
+        begin
+          FileUtils.mv(file, File.join(trash_dir, rev))
+        rescue SystemCallError => err
+          case err
+          when Errno::EACCES
+            error "#{file}: Permission denied"
+          else
+            raise
+          end
+        end
         Dir.chdir(trash_dir) do
           age(rev)
         end
+        true
       end
-    rescue Exception => err
-      respond "#{$script_name}: #{file}: #{err.message}"
     end
 
     # Return trashcan of device on which FILE resides, otherwise
@@ -278,7 +300,9 @@ module CleanRm
       trash_dir = File.join(mount_point, @trashcan_topdir)
       @per_device_trashcan[mount_point] ||=
         (Dir.exists?(trash_dir) &&
+         File.readable?(trash_dir) &&
          File.writable?(trash_dir) &&
+         File.executable?(trash_dir) &&
          ! File.world_writable?(trash_dir)) ?
         trash_dir : @home_trashcan
     end
@@ -302,21 +326,48 @@ module CleanRm
         if @request[:overwrite]
           case File.ftype(file)
           when "file"
-            IO.write(file, random_bytes(File.size(file)))
+            begin
+              IO.write(file, random_bytes(File.size(file)))
+            rescue SystemCallError => err
+              case err
+              when Errno::EACCES
+                error "#{file}: Permission denied"
+                return count
+              else
+                raise
+              end
+            end
           when "directory"
             Find.find(file) do |path|
-              IO.write(path, random_bytes(File.size(path))) \
-                if File.file?(path)
+              begin
+                IO.write(path, random_bytes(File.size(path))) \
+                  if File.file?(path)
+              rescue SystemCallError => err
+                case err
+                when Errno::EACCES
+                  error "#{file}: Permission denied"
+                  return count
+                else
+                  raise
+                end
+              end
             end
           end
         end
 
-        FileUtils.rm_rf(file, secure: true)
-        count = 1
+        begin
+          FileUtils.rm_rf(file, secure: true)
+          count = 1
+        rescue SystemCallError => err
+          case err
+          when Errno::EACCES
+            error "#{file}: Permission denied"
+            return count
+          else
+            raise
+          end
+        end
       end
-    rescue Exception => err
-      respond "#{$script_name}: #{file}: #{err.message}"
-    ensure
       count
     end
 
