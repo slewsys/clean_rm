@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
   spec.description   = %q{Library for managing filesystem trash. Previously "deleted" versions of a file can be restored in reverse order of deletion. Each restore iteration replaces the current file with an older version, until the original file is restored.
 
 Command-line utility `trash' is intended as a cross-platform, option-compatible alternative to the Unix `rm(1)' command.}
-  spec.homepage      = "https://github.com/slewsys/ruby/clean_rm"
+  spec.homepage      = "https://github.com/slewsys/clean_rm"
   spec.license       = "MIT"
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'

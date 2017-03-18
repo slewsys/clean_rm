@@ -62,7 +62,7 @@ Options:
 ## Contributing
 
 Bug reports and pull requests can be sent to
-[GitHub clean_rm](https://github.com/slewsys/ruby/clean_rm).
+[GitHub clean_rm](https://github.com/slewsys/clean_rm).
 
 ## License
 
