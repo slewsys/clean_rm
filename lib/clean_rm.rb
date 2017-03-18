@@ -16,6 +16,7 @@ module CleanRm
     LS = RbConfig::CONFIG['target_os'] =~ /darwin/ ? '/bin/ls' : '/usr/bin/ls'
     TRASH   = '.Trash'
     TRASHES = '.Trashes'
+    SECURE_OVERWRITE = 3
 
     attr_reader :filenames
     attr_reader :request
@@ -327,7 +328,9 @@ module CleanRm
           case File.ftype(file)
           when "file"
             begin
-              IO.write(file, random_bytes(File.size(file)))
+              SECURE_OVERWRITE.times do
+                IO.write(file, random_bytes(File.size(file)))
+              end
             rescue SystemCallError => err
               case err
               when Errno::EACCES
@@ -340,8 +343,9 @@ module CleanRm
           when "directory"
             Find.find(file) do |path|
               begin
-                IO.write(path, random_bytes(File.size(path))) \
-                  if File.file?(path)
+                (File.file?(path) ? SECURE_OVERWRITE : 0).times do
+                  IO.write(path, random_bytes(File.size(path)))
+                end
               rescue SystemCallError => err
                 case err
                 when Errno::EACCES
