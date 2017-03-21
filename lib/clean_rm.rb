@@ -27,6 +27,7 @@ module CleanRm
       @trashcan_topdir     = File.join(TRASHES, @uid.to_s)
       @home_trashcan       = File.join(Dir.home, TRASH)
       @per_device_trashcan = {}
+      @request             = { verbose: false }
 
       if ! Dir.exists?(@home_trashcan)
         begin
@@ -202,8 +203,8 @@ module CleanRm
 
     def mount_point(file)
       $have_sys_filesystem ? Sys::Filesystem.mount_point(file) : '/'
-    rescue StandardError => err
-      message "#{$script_name}: mount_point: #{err.message}" \
+    rescue SystemCallError => err
+      warn "#{$script_name}: #{file}: Permission denied" \
         if @request[:verbose]
       '/'
     end
