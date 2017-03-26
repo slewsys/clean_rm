@@ -103,8 +103,6 @@ module CleanRm
           end
         end
       end
-      error "#{@filenames.join(', ')}: No such file or directory" \
-        if count.zero? && ! @filenames.empty?
       count
     end
 
@@ -167,6 +165,10 @@ module CleanRm
            .reject { |fn| fn == '.' || fn == '..' })
         if ! files.empty?
           expanded += files
+        elsif file == '.' || file == '..'
+          error '"." and ".." may not be removed'
+        elsif File.exists?(file)
+          expanded << file
         elsif ! @request[:force]
           error "#{file}: No such file or directory"
         end
@@ -175,11 +177,25 @@ module CleanRm
     end
 
     def expand_toplevel(filenames)
+      expanded = []
+      (filenames.empty? ? ['*'] : filenames).each do |file|
 
-      # Limit expansion to top-level files.
-      Dir.glob(filenames.empty? ? ['*'] : filenames, File::FNM_EXTGLOB).uniq
-      .map { |fn| File.basename(fn) }
-      .reject { |fn| fn == '.' || fn == '..' }
+        # Limit expansion to top-level files.
+        files =
+          (Dir.glob(file, File::FNM_EXTGLOB).uniq
+           .map { |fn| File.basename(fn) }
+           .reject { |fn| fn == '.' || fn == '..' })
+        if ! files.empty?
+          expanded += files
+        elsif file == '.' || file == '..'
+          error '"." and ".." may not be accessed'
+        elsif File.exists?(file)
+          expanded << file
+        elsif file != '*' && ! @request[:force]
+          error "#{file}: No such file or directory"
+        end
+      end
+      expanded
     end
 
     def have_transfer_permission(file)
@@ -203,7 +219,7 @@ module CleanRm
 
     def mount_point(file)
       $have_sys_filesystem ? Sys::Filesystem.mount_point(file) : '/'
-    rescue SystemCallError => err
+    rescue SystemCallError
       warn "#{$script_name}: #{file}: Permission denied" \
         if @request[:verbose]
       '/'

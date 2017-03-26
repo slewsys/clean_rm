@@ -1,0 +1,177 @@
+.\"
+.\"	@(#)trash
+.\"
+.Dd January 28, 1999
+.Dt TRASH 1
+.Os
+.Sh NAME
+.Nm trash
+.Nd filesystem trash manager
+.Sh SYNOPSIS
+.Nm trash
+.Op Fl dfiPpRrW
+.Ar file ...
+.Nm trash
+.Fl e Op Fl fiP
+.Op Ar file ...
+.Nm trash
+.Fl l
+.Op Ar file ...
+.Sh DESCRIPTION
+The
+.Nm
+utility moves "deleted" files and directories
+to a per-device trashcan,
+from which they can be restored
+until the contents of the trashcan itself is purged.
+.Pp
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl d
+Transfer empty directories as well as other types of files to the trashcan.
+.It Fl e
+Purge
+.Ar files
+from trashcan so that they can no longer be restored.
+If
+.Ar file
+is not given, purge entire trashcan contents.
+.It Fl f
+Force - i.e., ignore warnings and without prompting.
+The
+.Fl f
+option overrides any previous
+.Fl i
+options.
+.It Fl h
+Show this message, then exit.
+.It Fl i
+Prompt for confirmation before transfering each
+.Ar file .
+The
+.Fl i
+option overrides any previous
+.Fl f
+options.
+.It Fl l
+List any
+.Ar files
+in trashcan.
+If no
+.Ar file
+is given, list entire trashcan contents.
+.It Fl P
+Overwrite regular
+.Ar files
+before purging.
+The
+.Fl P
+option implies option
+.Fl p .
+.It Fl p
+Purge
+.Ar files
+so that they cannot be restored.
+.It Fl R
+Recursively transfer directory hierarchies to the trashcan.
+The
+.Fl R
+option supercedes option
+.Fl d .
+.It Fl r
+Equivalent to
+.Fl R .
+.It Fl V
+Show version, then exit.
+.It Fl v
+Report diagnostics.
+.It Fl W
+Restore
+.Ar files
+in trashcan to working directory.
+.El
+.Pp
+The
+.Nm
+utility removes symbolic links, not the files referenced by the links.
+.Pp
+It is an error to attempt to remove the files ``.'' and ``..''.
+.Pp
+The
+.Nm
+utility exits 0 if all of the named files or file hierarchies were removed,
+or if the
+.Fl f
+option was specified and all of the existing files or file hierarchies were
+removed.
+If an error occurs,
+.Nm
+exits with a value >0.
+.Sh NOTE
+The
+.Nm
+command uses
+.Xr getopt 3
+to parse its arguments, which allows it to accept
+the
+.Sq Li --
+option which will cause it to stop processing flag options at that
+point.  This will allow the removal of file names that begin
+with a dash
+.Pq Sq - .
+For example:
+.Dl trash -- -filename
+The same behavior can be obtained by using an absolute or relative
+path reference.  For example:
+.Dl trash /home/user/-filename
+.Dl trash ./-filename
+.Sh SEE ALSO
+.Xr rmdir 1 ,
+.Xr undelete 2 ,
+.Xr unlink 2 ,
+.Xr fts 3 ,
+.Xr getopt 3 ,
+.Xr symlink 7
+.Sh BUGS
+Option
+.Fl P
+overwrites only regular files
+or, in the case of
+.Fl RP ,
+the regular files in a directory hierarchy.
+.Sh COMPATIBILITY
+The
+.Nm
+utility differs from historical implementations in that the
+.Fl f
+option only masks attempts to remove non-existent files instead of
+masking a large variety of errors.
+.Pp
+Also, historical
+.Bx
+implementations prompted on the standard output,
+not the standard error output.
+.Sh STANDARDS
+The
+.Nm
+command is almost
+.St -p1003.2
+compatible, except that
+.Tn POSIX
+requires
+.Nm trash
+to act like
+.Xr rmdir 1
+when the
+.Ar file
+specified is a directory.  This implementation requires the
+.Fl d
+option if such behavior is desired.  This follows the historical
+behavior of
+.Nm
+with respect to directories.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .

@@ -8,7 +8,7 @@ module Console
 
   def error(*args)
     $err_status = 1
-    puts "#{$script_name}: #{args.join(' ')}"
+    STDERR.puts "#{$script_name}: #{args.join(' ')}"
     false
   end
 
@@ -24,21 +24,21 @@ module Console
         true
       end
 
-    print "#{action}: #{file}: #{prompt}"
+    STDERR.print "#{action}: #{file}: #{prompt}"
     ch = $stdin.getch(min: 1).codepoints.first
 
     case ch
     when *['y', 'Y', ].map(&:ord)
-      puts "#{ch.chr}"
+      STDERR.puts "#{ch.chr}"
       true
     when *['n', 'N'].map(&:ord)
-      puts "#{ch.chr}"
+      STDERR.puts "#{ch.chr}"
       false
     when 3                      # CTRL-C
-      puts "\n#{$script_name}: User cancelled"
+      STDERR.puts "\n#{$script_name}: User cancelled"
       exit
     else
-      puts "#{ch.chr}"
+      STDERR.puts "#{ch.chr}"
       default_response
     end
   end

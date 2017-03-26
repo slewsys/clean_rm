@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["SlewSys@gmail.com"]
 
   spec.summary       = %q{Library for managing filesystem trash.}
-  spec.description   = %q{Library for managing filesystem trash. Previously "deleted" versions of a file can be restored in reverse order of deletion. Each restore iteration replaces the current file with an older version, until the original file is restored.
+  spec.description   = %q{Library for managing filesystem trash. Previously "deleted" versions of a file can be restored in reverse order of deletion. Each restore iteration replaces the current file with an older version until there are no more, then the newest version is restored again.
 
 Command-line utility `trash' is intended as a cross-platform, option-compatible alternative to the Unix `rm(1)' command.}
   spec.homepage      = "https://github.com/slewsys/clean_rm"
