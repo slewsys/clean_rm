@@ -24,7 +24,7 @@ RSpec.describe CleanRm do
     end
 
     it 'complains about non-existent files' do
-      expect { trash 'no-such-file' }.to output_contents_of('no-such-file.txt')
+      expect { trash 'no-such-file' }.to output_stderr_contents_of('no-such-file.txt')
     end
 
     it 'does not complain about non-existent files with option -f' do
@@ -58,7 +58,7 @@ RSpec.describe CleanRm do
   context 'directories' do
     it 'complains about transfering directories' do
       Dir.mkdir('2') if ! Dir.exists?('2')
-      expect { trash '2' }.to output_contents_of('use-r-for-dirs.txt')
+      expect { trash '2' }.to output_stderr_contents_of('use-r-for-dirs.txt')
     end
 
     it 'transfers directories with option -d' do
@@ -69,7 +69,7 @@ RSpec.describe CleanRm do
     it 'complains about non-empty directories with option -d' do
       Dir.mkdir('2') if ! Dir.exists?('2')
       File.write('2/1', Time.now)
-      expect { trash '-d', '2' }.to output_contents_of('dir-not-empty.txt')
+      expect { trash '-d', '2' }.to output_stderr_contents_of('dir-not-empty.txt')
       expect(Dir.exists?("2")).to eq(true)
     end
 

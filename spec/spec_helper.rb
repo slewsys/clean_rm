@@ -19,6 +19,10 @@ def output_contents_of(file)
   output(File.read('spec/data/' + file)).to_stdout_from_any_process
 end
 
+def output_stderr_contents_of(file)
+  output(File.read('spec/data/' + file)).to_stderr_from_any_process
+end
+
 def output_matching(pattern)
   output(pattern).to_stdout_from_any_process
 end
