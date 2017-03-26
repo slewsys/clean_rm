@@ -112,7 +112,20 @@ RSpec.describe CleanRm do
         expect(File.read('1')).to eq(date)
       end
     end
+  end
 
+  context 'file patterns' do
+    it 'recognizes file patterns' do
+      File.write('testing 123', '')
+      expect { trash '*123*' }.to output_nothing
+      expect(File.exists?('testing 123')).to eq(false)
+    end
+
+    it 'recognizes files containing patterns' do
+      File.write('*[123]*{}', '')
+      expect { trash '*123*' }.to output_nothing
+      expect(File.exists?('*[123]*{}')).to eq(false)
+    end
   end
 
 end
