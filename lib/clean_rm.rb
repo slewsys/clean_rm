@@ -61,6 +61,7 @@ module CleanRm
     def empty(filenames, request = {})
       @filenames = filenames
       @request = request
+      @found = []
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
@@ -69,6 +70,7 @@ module CleanRm
           end
         end
       end
+      report_not_found(@filenames)
       count
     end
 
@@ -77,6 +79,7 @@ module CleanRm
     def list(filenames, request = {})
       @filenames = filenames
       @request = request
+      @found = []
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
@@ -103,6 +106,7 @@ module CleanRm
           end
         end
       end
+      report_not_found(@filenames)
       count
     end
 
@@ -110,6 +114,7 @@ module CleanRm
     def restore(filenames, request = {})
       @filenames = filenames
       @request = request
+      @found = []
       count = 0
       @per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) { expand_toplevel(@filenames) }.each do |file|
@@ -117,6 +122,7 @@ module CleanRm
           count += pop_revision(file, trash_dir)
         end
       end
+      report_not_found(@filenames)
       count
     end
 
@@ -187,12 +193,15 @@ module CleanRm
            .reject { |fn| fn == '.' || fn == '..' })
         if ! files.empty?
           expanded += files
+          @found << file
         elsif file == '.' || file == '..'
           error '"." and ".." may not be accessed'
+          @found << file
         elsif File.exists?(file)
           expanded << file
-        elsif file != '*' && ! @request[:force]
-          error "#{file}: No such file or directory"
+          @found << file
+        # elsif file != '*' && ! @request[:force]
+        #   error "#{file}: No such file or directory"
         end
       end
       expanded
@@ -281,6 +290,14 @@ module CleanRm
     def random_bytes(size)
       @random ||= Random.new
       size.times.map { @random.rand(256) }.pack("C" * size)
+    end
+
+    def report_not_found(filenames)
+      if ! @request[:force]
+        (filenames - @found).each do |file|
+          error "#{file}: No such file or directory"
+        end
+      end
     end
 
     # Shift FILE to end (bottom) of revision stack (FILO).
