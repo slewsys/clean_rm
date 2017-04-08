@@ -1,6 +1,7 @@
 require 'etc'
 require 'find'
 require 'fileutils'
+require 'timeout'
 
 $have_sys_filesystem =
   begin
@@ -89,7 +90,7 @@ module CleanRm
             # interprets them as command-line switches. Therefore,
             # prefix these with `./' and then filter `./' on output.
             begin
-              IO.popen([LS, '-ald', *toplevel_files.map { |f| './' + f }],
+              IO.popen([LS, '-aldg', *toplevel_files.map { |f| './' + f }],
                        :err => [:child, :out]) do |io|
                 respond "#{trash_dir}:"
                 respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
@@ -333,13 +334,18 @@ module CleanRm
     def trashcan(file)
       mount_point = mount_point(file)
       trash_dir = File.join(mount_point, @trashcan_topdir)
-      @per_device_trashcan[mount_point] ||=
-        (Dir.exists?(trash_dir) &&
-         File.readable?(trash_dir) &&
-         File.writable?(trash_dir) &&
-         File.executable?(trash_dir) &&
-         ! File.world_writable?(trash_dir)) ?
-        trash_dir : @home_trashcan
+      Timeout::timeout(3) do
+        @per_device_trashcan[mount_point] ||=
+          (Dir.exists?(trash_dir) &&
+           File.readable?(trash_dir) &&
+           File.writable?(trash_dir) &&
+           File.executable?(trash_dir) &&
+           ! File.world_writable?(trash_dir)) ?
+          trash_dir : @home_trashcan
+      end
+    rescue Timeout::Error
+      error "#{file}: Cannot access"
+      @per_device_trashcan[mount_point] ||= @home_trashcan
     end
 
     # Return name of FILE with timestamp + 3-digit index appended.

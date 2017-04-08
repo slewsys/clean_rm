@@ -2,8 +2,17 @@ require 'io/console'
 
 module Console
 
+  TRASHCAN_COLOR = "\e[1;34m"
+  RESET_COLOR = "\e[0m"
+
   def respond(*args)
-    puts(args)
+    if $stdout.isatty
+      args.each do |arg|
+        puts  arg =~ /^\/.*:$/ ? "#{TRASHCAN_COLOR}#{arg}#{RESET_COLOR}" : arg
+      end
+    else
+      puts(args)
+    end
   end
 
   def error(*args)
