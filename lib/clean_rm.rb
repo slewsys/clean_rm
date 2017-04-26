@@ -42,15 +42,6 @@ module CleanRm
         raise SecurityError, "#{@home_trashcan}: Unsafe access permissions"
       end
 
-      # Initialize @per_device_trashcan hash for each mount_point...
-      #
-      # NB: Though @per_device_trashcan can go out-of-date when new
-      #     devices are mounted after Trashcan instantiation,
-      #     trashcan(FILE) is always current.
-      $have_sys_filesystem ?
-        Sys::Filesystem.mounts.map(&:mount_point).each { |dir| trashcan(dir) } :
-        trashcan(Dir.home)
-
       # Include ui_module to expose `confirm', `respond' and `error' methods...
       self.class.include(Object.const_get ui_module)
 
@@ -64,7 +55,7 @@ module CleanRm
       @request = request
       @found = []
       count = 0
-      @per_device_trashcan.values.uniq.each do |trash_dir|
+      per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
           expand_toplevel(@filenames).each do |file|
             count += unlink(file)
@@ -82,7 +73,7 @@ module CleanRm
       @request = request
       @found = []
       count = 0
-      @per_device_trashcan.values.uniq.each do |trash_dir|
+      per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) do
           unless (toplevel_files = expand_toplevel(@filenames)).empty?
 
@@ -117,7 +108,7 @@ module CleanRm
       @request = request
       @found = []
       count = 0
-      @per_device_trashcan.values.uniq.each do |trash_dir|
+      per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) { expand_toplevel(@filenames) }.each do |file|
           next if File.exists?(file) && ! shift_revision(file)
           count += pop_revision(file, trash_dir)
@@ -225,6 +216,14 @@ module CleanRm
       else
         true
       end
+    end
+
+    # Refresh device hash for each mount_point and return it.
+    def per_device_trashcan
+      $have_sys_filesystem ?
+        Sys::Filesystem.mounts.map(&:mount_point).each { |dir| trashcan(dir) } :
+        trashcan(Dir.home)
+      @per_device_trashcan
     end
 
     def mount_point(file)
