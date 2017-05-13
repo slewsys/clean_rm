@@ -55,6 +55,29 @@ RSpec.describe CleanRm do
     end
   end
 
+  context 'dot.files' do
+    it 'transfers dot.files' do
+      File.write('.1', Time.now)
+      expect { trash '.1' }.to output_nothing
+      expect(File.exists?(".1")).to eq(false)
+    end
+
+    it 'lists trashcan contents' do
+      expect { trash '-l' }.to output_matching(/[rwx-]+\s+1\s.*\s.1/)
+    end
+
+    it 'versions transferred files' do
+      File.write('.1', Time.now)
+      expect { trash '.1' }.to output_nothing
+      expect { trash '-l' }.to output_matching(/[rwx-]+\s+1\s.*\s.1.#.*#-\d{3}/)
+    end
+
+    it 'restores transferred files' do
+      expect { trash '-W', '.1'}.to output_nothing
+      expect(File.exists?(".1")).to eq(true)
+    end
+  end
+
   context 'directories' do
     it 'complains about transfering directories' do
       Dir.mkdir('2') if ! Dir.exists?('2')
@@ -84,10 +107,7 @@ RSpec.describe CleanRm do
   context 'restoring versions' do
     before {
       trash '-ef'
-      oldest =   Time.now.to_s
-      middle =   (Time.now + 1).to_s
-      youngest = (Time.now + 2).to_s
-      @dates = [oldest, middle, youngest]
+      @dates = 3.times.map { |n| (Time.now + n).to_s }
       @dates.each do |date|
         File.write('1', date)
         trash '1'

@@ -176,7 +176,7 @@ module CleanRm
 
     def expand_toplevel(filenames)
       expanded = []
-      (filenames.empty? ? ['*'] : filenames).each do |file|
+      (filenames.empty? ? ['*', '.*'] : filenames).each do |file|
 
         # Limit expansion to top-level files.
         files =
@@ -188,7 +188,6 @@ module CleanRm
           @found << file
         elsif file == '.' || file == '..'
           error '"." and ".." may not be accessed'
-          @found << file
         elsif File.exists?(file)
           expanded << file
           @found << file

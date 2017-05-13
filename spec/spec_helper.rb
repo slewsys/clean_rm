@@ -4,7 +4,7 @@ require 'clean_rm'
 $script_name = 'trash'
 
 def trash(*args)
-  system('bundle', 'exec', 'bin/trash', *args)
+  system('bundle', 'exec', 'exe/trash', *args)
 end
 
 def output_nothing()
