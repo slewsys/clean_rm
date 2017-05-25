@@ -14,10 +14,28 @@ $have_sys_filesystem =
 module CleanRm
   class Trashcan
 
-    LS = RbConfig::CONFIG['target_os'] =~ /darwin/ ? '/bin/ls' : '/usr/bin/ls'
-    TRASH   = '.Trash'
+    # Path of POSIX-compatible `ls' command.
+    LS = case RbConfig::CONFIG['target_os']
+         when /darwin|bsd/
+           '/bin/ls'
+         else
+           '/usr/bin/ls'
+         end
+
+    # Path of trashcan relative to user HOME directory.
+    TRASH = case RbConfig::CONFIG['target_os']
+            when /darwin/
+              '.Trash'
+            else
+              '.local/share/Trash'
+            end
+    
+    # Path of per-device trashcans relative device mount point.
+    # See instance method #trashcan for complete path derivation.
     TRASHES = '.Trashes'
+
     SECURE_OVERWRITE = 3
+
 
     attr_reader :filenames
     attr_reader :request
@@ -32,7 +50,7 @@ module CleanRm
 
       if ! Dir.exists?(@home_trashcan)
         begin
-          Dir.mkdir(@home_trashcan, 0700)
+          FileUtils.mkdir_p(@home_trashcan, mode: 0700)
         rescue SystemCallError => err
           raise SystemCallError, err.message
         end
