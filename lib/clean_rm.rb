@@ -39,16 +39,13 @@ module CleanRm
     
     SECURE_OVERWRITE = 3
 
-
     attr_reader :filenames
     attr_reader :request
-    attr_reader :per_device_trashcan
 
     def initialize(ui_module = :Console)
       @uid                 = Etc.getpwnam(Etc.getlogin).uid
       @trashcan_topdir     = File.join(TRASHES, @uid.to_s)
       @home_trashcan       = File.join(Dir.home, TRASH)
-      @per_device_trashcan = {}
       @request             = { verbose: false }
 
       if ! Dir.exists?(@home_trashcan)
@@ -167,6 +164,8 @@ module CleanRm
           case err
           when Errno::EPERM
             error "#{file}: Operation not permitted"
+          when Errno::EINVAL
+            error "#{file}: Invalid argument"
           else
             raise
           end
@@ -212,7 +211,7 @@ module CleanRm
         elsif File.exists?(file)
           expanded << file
           @found << file
-        # elsif file != '*' && ! @request[:force]
+        # elsif file != '*' && file != '.*' && ! @request[:force]
         #   error "#{file}: No such file or directory"
         end
       end
@@ -240,10 +239,13 @@ module CleanRm
 
     # Refresh device hash for each mount_point and return it.
     def per_device_trashcan
-      $have_sys_filesystem ?
-        Sys::Filesystem.mounts.map(&:mount_point).each { |dir| trashcan(dir) } :
-        trashcan(Dir.home)
-      @per_device_trashcan
+      if $have_sys_filesystem
+        Sys::Filesystem.mounts.map(&:mount_point).map do |dir|
+          [dir, trashcan(dir)]
+        end.to_h
+      else
+        { '/' => trashcan(Dir.home) }
+      end
     end
 
     def mount_point(file)
@@ -272,6 +274,8 @@ module CleanRm
           case err
           when Errno::EACCES
             error "#{file}: Permission denied"
+          when Errno::EINVAL
+            error "#{file}: Invalid argument"
           else
             raise
           end
@@ -285,22 +289,24 @@ module CleanRm
       count = 0
       begin
         FileUtils.mv(File.join(trash_dir, file), file)
+        Dir.chdir(trash_dir) do
+
+          # If previous revisions (i.e., `file.#*#*') exist, then use
+          # most recent revision as new FILE.
+          unless (revs = Dir.glob(file + ".#*#*")).empty?
+            rev = revs.sort_by { |f| test(?A, f) }.last
+            FileUtils.mv(rev, file)
+          end
+        end
         count = 1
       rescue SystemCallError => err
         case err
         when Errno::EACCES
           error "#{File.writable?(Dir.pwd) ? file : '.'}: Permission denied"
+        when Errno::EINVAL
+          error "#{file}: Invalid argument"
         else
           raise
-        end
-      end
-      Dir.chdir(trash_dir) do
-
-        # If previous revisions (i.e., `file.#*#*') exist, then use
-        # most recent revision as new FILE.
-        unless (revs = Dir.glob(file + ".#*#*")).empty?
-          rev = revs.sort_by { |f| test(?A, f) }.last
-          FileUtils.mv(rev, file)
         end
       end
       count
@@ -333,18 +339,20 @@ module CleanRm
         end
         begin
           FileUtils.mv(file, File.join(trash_dir, rev))
+          Dir.chdir(trash_dir) do
+            age(rev)
+          end
+          true
         rescue SystemCallError => err
           case err
           when Errno::EACCES
             error "#{file}: Permission denied"
+          when Errno::EINVAL
+            error "#{file}: Invalid argument"
           else
             raise
           end
         end
-        Dir.chdir(trash_dir) do
-          age(rev)
-        end
-        true
       end
     end
 
@@ -354,7 +362,6 @@ module CleanRm
       mount_point = mount_point(file)
       trash_dir = File.join(mount_point, @trashcan_topdir)
       Timeout::timeout(FILE_ACCESS_TIMEOUT) do
-        @per_device_trashcan[mount_point] ||=
           (Dir.exists?(trash_dir) &&
            File.readable?(trash_dir) &&
            File.writable?(trash_dir) &&
@@ -364,7 +371,7 @@ module CleanRm
       end
     rescue Timeout::Error
       error "#{file}: Cannot access"
-      @per_device_trashcan[mount_point] ||= @home_trashcan
+       @home_trashcan
     end
 
     # Return name of FILE with timestamp + 3-digit index appended.
@@ -395,24 +402,30 @@ module CleanRm
               when Errno::EACCES
                 error "#{file}: Permission denied"
                 return count
+              when Errno::EINVAL
+                error "#{file}: Invalid argument"
+                return count
               else
                 raise
               end
             end
           when "directory"
-            Find.find(file) do |path|
-              begin
+            begin
+              Find.find(file) do |path|
                 (File.file?(path) ? SECURE_OVERWRITE : 0).times do
                   IO.write(path, random_bytes(File.size(path)))
                 end
-              rescue SystemCallError => err
-                case err
-                when Errno::EACCES
-                  error "#{file}: Permission denied"
-                  return count
-                else
-                  raise
-                end
+              end
+            rescue SystemCallError => err
+              case err
+              when Errno::EACCES
+                error "#{file}: Permission denied"
+                return count
+              when Errno::EINVAL
+                error "#{file}: Invalid argument"
+                return count
+              else
+                raise
               end
             end
           end
@@ -425,7 +438,8 @@ module CleanRm
           case err
           when Errno::EACCES
             error "#{file}: Permission denied"
-            return count
+          when Errno::EINVAL
+            error "#{file}: Invalid argument"
           else
             raise
           end
