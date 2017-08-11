@@ -34,6 +34,9 @@ module CleanRm
     # See instance method #trashcan for complete path derivation.
     TRASHES = '.Trashes'
 
+    # Seconds before file access times out.
+    FILE_ACCESS_TIMEOUT = 10
+    
     SECURE_OVERWRITE = 3
 
 
@@ -350,7 +353,7 @@ module CleanRm
     def trashcan(file)
       mount_point = mount_point(file)
       trash_dir = File.join(mount_point, @trashcan_topdir)
-      Timeout::timeout(3) do
+      Timeout::timeout(FILE_ACCESS_TIMEOUT) do
         @per_device_trashcan[mount_point] ||=
           (Dir.exists?(trash_dir) &&
            File.readable?(trash_dir) &&
