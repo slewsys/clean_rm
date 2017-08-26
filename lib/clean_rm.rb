@@ -29,14 +29,14 @@ module CleanRm
             else
               '.local/share/Trash'
             end
-    
+
     # Path of per-device trashcans relative device mount point.
     # See instance method #trashcan for complete path derivation.
     TRASHES = '.Trashes'
 
     # Seconds before file access times out.
     FILE_ACCESS_TIMEOUT = 10
-    
+
     SECURE_OVERWRITE = 3
 
     attr_reader :filenames
@@ -99,7 +99,7 @@ module CleanRm
             # interprets them as command-line switches. Therefore,
             # prefix these with `./' and then filter `./' on output.
             begin
-              IO.popen([LS, '-aldg', *toplevel_files.map { |f| './' + f }],
+              IO.popen([LS, '-ald', *toplevel_files.map { |f| './' + f }],
                        :err => [:child, :out]) do |io|
                 respond "#{trash_dir}:"
                 respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
