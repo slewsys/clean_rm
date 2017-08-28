@@ -43,7 +43,7 @@ module CleanRm
     attr_reader :request
 
     def initialize(ui_module = :Console)
-      @uid                 = Etc.getpwnam(Etc.getlogin).uid
+      @uid                 = Etc.getpwuid
       @trashcan_topdir     = File.join(TRASHES, @uid.to_s)
       @home_trashcan       = File.join(Dir.home, TRASH)
       @request             = { verbose: false }
