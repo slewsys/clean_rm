@@ -11,12 +11,21 @@ $have_sys_filesystem =
     false
   end
 
+unless Dir.respond_to? :empty?
+  def Dir.empty? dir
+    glob = Dir.glob(File.join(dir, '*'), File::FNM_DOTMATCH).map do |p|
+      File.basename p
+    end
+    (glob - ['.', '..']).empty?
+  end
+end
+
 module CleanRm
   class Trashcan
 
     # Path of POSIX-compatible `ls' command.
     LS = case RbConfig::CONFIG['target_os']
-         when /darwin|bsd/
+         when /darwin|bsd|linux-gnu/
            '/bin/ls'
          else
            '/usr/bin/ls'
