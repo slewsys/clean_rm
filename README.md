@@ -24,10 +24,14 @@ Per-device trashcans are recommended and used if available. These must
 be created separately and are defined in `Trashcan#trashcan()` to be of
 the form:
 
-_mount-point_`/.Trashes/`_user-id_,
+```
+_mount-point_/.Trashes/_user-id_,
+```
 
 where _mount-point_ is device's filesystem root, and _user-id_
-is provided by the POSIX `getuid(2)` system call.
+is provided by the POSIX `getuid(2)` system call. The _user-id_
+subdirectory does not need to be created separately provided directory
+`_mount-point_/.Trashes/` is world writable, executable and _sticky_.
 
 ## Command-line Interface
 

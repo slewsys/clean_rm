@@ -52,7 +52,6 @@ module CleanRm
 
     def initialize(ui_module = :Console)
       @uid                 = Etc.getpwuid.uid
-      @trashcan_topdir     = File.join(TRASHES, @uid.to_s)
       @home_trashcan       = File.join(Dir.home, TRASH)
       @request             = { verbose: false }
 
@@ -358,14 +357,31 @@ module CleanRm
     # @home_trashcan.
     def trashcan(file)
       mount_point = mount_point(file)
-      trash_dir = File.join(mount_point, @trashcan_topdir)
+      trashes_dir = File.join(mount_point, TRASHES)
+      trash_dir = File.join(trashes_dir, @uid.to_s)
       Timeout::timeout(FILE_ACCESS_TIMEOUT) do
-          (Dir.exists?(trash_dir) &&
-           File.readable?(trash_dir) &&
-           File.writable?(trash_dir) &&
-           File.executable?(trash_dir) &&
-           ! File.world_writable?(trash_dir)) ?
-          trash_dir : @home_trashcan
+        if (Dir.exists?(trash_dir) &&
+            File.readable?(trash_dir) &&
+            File.writable?(trash_dir) &&
+            File.executable?(trash_dir) &&
+            ! File.world_writable?(trash_dir))
+          trash_dir
+        elsif (Dir.exists?(trashes_dir) &&
+            File.writable?(trashes_dir) &&
+            File.executable?(trashes_dir) &&
+            File.sticky?(trashes_dir))
+          begin
+            Dir.mkdir(trash_dir, 0700)
+            trash_dir
+          rescue SystemCallError
+            trash_dir.chmod(0700)
+            trash_dir
+          rescue
+            @home_trashcan
+          end
+        else
+          @home_trashcan
+        end
       end
     rescue Timeout::Error
       error "#{file}: Cannot access"
