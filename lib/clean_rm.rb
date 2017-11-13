@@ -53,6 +53,8 @@ module CleanRm
     def initialize(ui_module = :Console)
       @uid                 = Etc.getpwuid.uid
       @home_trashcan       = File.join(Dir.home, TRASH)
+      @icloud_drive        = File.join(Dir.home, 'Library', 'Mobile Documents')
+      @icloud_trashcan     = File.join(@icloud_drive, 'com~apple~CloudDocs', TRASH)
       @request             = { verbose: false }
 
       if ! Dir.exists?(@home_trashcan)
@@ -246,7 +248,7 @@ module CleanRm
         end.to_h
       else
         { '/' => trashcan(Dir.home) }
-      end
+      end.merge!({ @icloud_drive => @icloud_trashcan }) if Dir.exists?(@icloud_drive)
     end
 
     def mount_point(file)
@@ -374,8 +376,8 @@ module CleanRm
             Dir.mkdir(trash_dir, 0700)
             trash_dir
           rescue SystemCallError
-            trash_dir.chmod(0700)
-            trash_dir
+            # File.open(trash_dir) { |dir| dir.chmod(0700) }
+            Dir.exists?(trash_dir) ? trash_dir : @home_trashcan
           rescue
             @home_trashcan
           end
