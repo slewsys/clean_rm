@@ -51,11 +51,11 @@ module CleanRm
     attr_reader :request
 
     def initialize(ui_module = :Console)
-      @uid                 = Etc.getpwuid.uid
-      @home_trashcan       = File.join(Dir.home, TRASH)
-      @icloud_drive        = File.join(Dir.home, 'Library', 'Mobile Documents')
-      @icloud_trashcan     = File.join(@icloud_drive, 'com~apple~CloudDocs', TRASH)
-      @request             = { verbose: false }
+      @uid             = Etc.getpwuid.uid
+      @home_trashcan   = File.join(Dir.home, TRASH)
+      @icloud_drive    = File.join(Dir.home, 'Library', 'Mobile Documents')
+      @icloud_trashcan = File.join(@icloud_drive, 'com~apple~CloudDocs', TRASH)
+      @request         = { verbose: false }
 
       if ! Dir.exists?(@home_trashcan)
         begin
@@ -248,7 +248,8 @@ module CleanRm
         end.to_h
       else
         { '/' => trashcan(Dir.home) }
-      end.merge!({ @icloud_drive => @icloud_trashcan }) if Dir.exists?(@icloud_drive)
+      end.merge!(Dir.exists?(@icloud_drive) ?
+                 { @icloud_drive => @icloud_trashcan } : {})
     end
 
     def mount_point(file)
