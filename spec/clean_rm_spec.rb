@@ -104,6 +104,33 @@ RSpec.describe CleanRm do
     end
   end
 
+  context 'symlinks' do
+    before {
+      trash '-ef'
+    }
+
+    it 'transfers symlinks' do
+      File.symlink('foobar', 'link-to-foobar')
+      expect { trash 'link-to-foobar' }.to output_nothing
+      expect(File.symlink?('link-to-foobar')).to eq(false)
+    end
+
+    it 'versions transferred symlinks' do
+      File.symlink('barfoo', 'link-to-foobar')
+      expect { trash 'link-to-foobar' }.to output_nothing
+      File.symlink('foobar', 'link-to-foobar')
+      expect { trash 'link-to-foobar' }.to output_nothing
+      expect { trash '-l' }.to output_matching(/[rwx-]+\s+1\s.*\slink-to-foobar.#.*#-\d{3} ->/)
+    end
+
+    it 'restores transferred symlinks' do
+      File.symlink('foobar', 'link-to-foobar')
+      expect { trash 'link-to-foobar' }.to output_nothing
+      expect { trash '-W', 'link-to-foobar'}.to output_nothing
+      expect(File.symlink?('link-to-foobar')).to eq(true)
+    end
+  end
+
   context 'restoring versions' do
     before {
       trash '-ef'
@@ -111,14 +138,24 @@ RSpec.describe CleanRm do
       @dates.each do |date|
         File.write('1', date)
         trash '1'
+        File.symlink(date, 'link-to-date')
+        trash 'link-to-date'
       end
     }
 
-    it 'restores in reverse order of transfer' do
+    it 'restores files in reverse order of transfer' do
       @dates.reverse.each do |date|
         trash '-W', '1'
         expect(File.read('1')).to eq(date)
         File.delete('1')
+      end
+    end
+
+    it 'restores symlinks in reverse order of transfer' do
+      @dates.reverse.each do |date|
+        trash '-W', 'link-to-date'
+        expect(File.readlink('link-to-date')).to eq(date)
+        File.delete('link-to-date')
       end
     end
 

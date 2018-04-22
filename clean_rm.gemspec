@@ -32,10 +32,10 @@ Command-line utility `trash' is intended as a cross-platform, option-compatible 
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "sys-filesystem", "~> 1.1", ">= 1.1.8"
+  spec.add_dependency "sys-filesystem", "~> 1.1", ">= 1.1.9"
 
-  spec.add_development_dependency "bundler", "~> 1.14"
-  spec.add_development_dependency "rake", "~> 12.0"
-  spec.add_development_dependency "rspec-expectations", "~> 3.6"
-  spec.add_development_dependency "rspec", "~> 3.6"
+  spec.add_development_dependency "bundler", "~> 1.16"
+  spec.add_development_dependency "rake", "~> 12.3"
+  spec.add_development_dependency "rspec-expectations", "~> 3.7"
+  spec.add_development_dependency "rspec", "~> 3.7"
 end

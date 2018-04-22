@@ -2,6 +2,7 @@ require 'etc'
 require 'find'
 require 'fileutils'
 require 'timeout'
+require 'clean_rm/stat_symlink'
 
 $have_sys_filesystem =
   begin
@@ -19,6 +20,9 @@ unless Dir.respond_to? :empty?
     (glob - ['.', '..']).empty?
   end
 end
+
+# File.stat for symlinks
+using StatSymlink
 
 module CleanRm
   class Trashcan
@@ -134,7 +138,8 @@ module CleanRm
       count = 0
       per_device_trashcan.values.uniq.each do |trash_dir|
         Dir.chdir(trash_dir) { expand_toplevel(filenames) }.each do |file|
-          next if File.exists?(file) && ! shift_revision(file)
+          next if (File.exists?(file) || File.symlink?(file)) &&
+            ! shift_revision(file)
           count += pop_revision(file, trash_dir)
         end
       end
@@ -188,7 +193,7 @@ module CleanRm
           expanded += files
         elsif file == '.' || file == '..'
           error '"." and ".." may not be removed'
-        elsif File.exists?(file)
+        elsif File.exists?(file) || File.symlink?(file)
           expanded << file
         elsif ! request[:force]
           error "#{file}: No such file or directory"
@@ -211,7 +216,7 @@ module CleanRm
           @found << file
         elsif file == '.' || file == '..'
           error '"." and ".." may not be accessed'
-        elsif File.exists?(file)
+        elsif File.exists?(file) || File.symlink?(file)
           expanded << file
           @found << file
         # elsif file != '*' && file != '.*' && ! request[:force]
@@ -269,7 +274,7 @@ module CleanRm
         basename = File.basename(file)
         Dir.chdir(trash_dir) do
           FileUtils.mv(basename, unique_name(basename)) \
-            if File.exists?(basename)
+            if (File.exists?(basename) || File.symlink?(basename))
         end
         FileUtils.mv(file, File.join(trash_dir, basename))
         count = 1
@@ -296,7 +301,7 @@ module CleanRm
         # If previous revisions (i.e., `file.#*#*') exist, then use
         # most recent revision as new FILE.
         unless (revs = Dir.glob(file + ".#*#*")).empty?
-          rev = revs.sort_by { |f| test(?A, f) }.last
+          rev = revs.sort_by { |f| File.stat(f).atime }.last
           FileUtils.mv(rev, file)
         end
       end
