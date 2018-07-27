@@ -12,7 +12,7 @@ module StatSymlink
       unless st_obj.respond_to?(:atime)
 
         # Run OS command stat(1) to get st_* stat var assignments.
-        stat_s = `stat -s #{file.shellescape}`
+        stat_s = `stat -s #{file.shellescape} 2>/dev/null || stat --printf="st_mode=%f st_atime=%X st_mtime=%Y st_ctime=%Z" #{file.shellescape}`
         st = stat_s.split(' ').map { |assign| assign.split('=') }.to_h
         st.keys.each do |var|
 
