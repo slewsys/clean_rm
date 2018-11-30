@@ -32,7 +32,7 @@ Command-line utility `trash' is intended as a cross-platform, option-compatible 
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "ffi", "1.9.21"
+  spec.add_dependency "ffi", "~> 1.9.25"
   spec.add_dependency "sys-filesystem", "~> 1.1", ">= 1.1.9"
 
   spec.add_development_dependency "bundler", "~> 1.16"
