@@ -21,18 +21,72 @@ unless Dir.respond_to? :empty?
   end
 end
 
-# File.stat for symlinks
-using StatSymlink
+class IO
+  class <<self
+    def mute(*streams)
+      saved_streams = streams.collect { |stream| stream.dup }
+      streams.each do |stream|
+        stream.reopen('/dev/null')
+        stream.sync = true
+      end
+      yield
+    ensure
+      streams.each_with_index do |stream, i|
+        stream.reopen(saved_streams[i])
+      end
+    end
+  end
+end
+
 
 module CleanRm
   class Trashcan
 
+    # File.stat for symlinks
+    using StatSymlink
+
     # Path of POSIX-compatible `ls' command.
     LS = case RbConfig::CONFIG['target_os']
-         when /darwin|bsd|linux-gnu/
+         when /bsd|darwin|linux-gnu/
            '/bin/ls'
          else
-           '/usr/bin/ls'
+           '/bin/ls'
+         end
+
+    # Path of POSIX-compatible `mkdir' command.
+    MKDIR = case RbConfig::CONFIG['target_os']
+         when /bsd|darwin|linux-gnu/
+           '/bin/mkdir'
+         else
+           '/bin/mkdir'
+         end
+
+    # Path of POSIX-compatible `chown' command.
+    CHOWN = case RbConfig::CONFIG['target_os']
+         when /bsd|darwin/
+           '/usr/sbin/chown'
+         when /linux-gnu/
+           '/bin/chown'
+         else
+           '/usr/sbin/chown'
+         end
+
+    # Path of POSIX-compatible `chmod' command.
+    CHMOD = case RbConfig::CONFIG['target_os']
+         when /bsd|darwin|linux-gnu/
+           '/bin/chmod'
+         else
+           '/bin/chmod'
+         end
+
+    # Path of privilege escalation command `sudo'.
+    SUDO = case RbConfig::CONFIG['target_os']
+         when /bsd/
+           '/usr/local/bin/sudo'
+         when /darwin|linux-gnu/
+           '/usr/bin/sudo'
+         else
+           '/usr/local/bin/sudo'
          end
 
     # Path of trashcan relative to user HOME directory.
@@ -368,12 +422,35 @@ module CleanRm
       trashes_dir = File.join(mount_point, TRASHES)
       trash_dir = File.join(trashes_dir, @uid.to_s)
       Timeout::timeout(FILE_ACCESS_TIMEOUT) do
+
+        # Missing TRASHES_DIR...
+        if ! Dir.exists?(trashes_dir)
+
+          # so try creating it.
+          if @uid.zero?
+            begin
+              Dir.mkdir(trashes_dir)
+              File.chown(0, 0, trashes_dir)
+              File.chmod(01333, trashes_dir)
+            rescue SystemCallError
+            end
+          else
+            IO.mute($stderr) do
+              system SUDO, MKDIR, TRASHES
+              system SUDO, CHOWN, '0:0', TRASHES
+              system SUDO, CHMOD, '1333', TRASHES
+            end
+          end
+        end
+
         if (Dir.exists?(trash_dir) &&
             File.readable?(trash_dir) &&
             File.writable?(trash_dir) &&
             File.executable?(trash_dir) &&
             ! File.world_writable?(trash_dir))
           trash_dir
+
+        # Create missing ID directory within TRASHES_DIR.
         elsif (Dir.exists?(trashes_dir) &&
             File.writable?(trashes_dir) &&
             File.executable?(trashes_dir) &&
