@@ -421,28 +421,33 @@ module CleanRm
       mount_point = mount_point(file)
       trashes_dir = File.join(mount_point, TRASHES)
       trash_dir = File.join(trashes_dir, @uid.to_s)
-      Timeout::timeout(FILE_ACCESS_TIMEOUT) do
 
-        # Missing TRASHES_DIR...
-        if ! Dir.exists?(trashes_dir)
+      # Missing TRASHES_DIR...
+      # NB: Prevent macOS from creating  `/dev/.Trashes'.
+      if ! Dir.exists?(trashes_dir) && mount_point != '/dev'
+        begin
+          Timeout::timeout(FILE_ACCESS_TIMEOUT) do
 
-          # so try creating it.
-          if @uid.zero?
-            begin
+            # so try creating it.
+            if @uid.zero?
               Dir.mkdir(trashes_dir)
               File.chown(0, 0, trashes_dir)
               File.chmod(01333, trashes_dir)
-            rescue SystemCallError
-            end
-          else
-            IO.mute($stderr) do
-              system SUDO, MKDIR, TRASHES
-              system SUDO, CHOWN, '0:0', TRASHES
-              system SUDO, CHMOD, '1333', TRASHES
+            elsif File.executable?(SUDO)
+              IO.mute($stderr, $stdin) do
+                system SUDO, '-p', '', '-S', MKDIR, trashes_dir
+                system SUDO, '-p', '', '-S', CHOWN, '0:0', trashes_dir
+                system SUDO, '-p', '', '-S', CHMOD, '1333', trashes_dir
+              end
             end
           end
+        rescue
+          $stderr.reopen(STDERR)
+          $stdin.reopen(STDIN)
         end
+      end
 
+      Timeout::timeout(FILE_ACCESS_TIMEOUT) do
         if (Dir.exists?(trash_dir) &&
             File.readable?(trash_dir) &&
             File.writable?(trash_dir) &&
@@ -468,9 +473,9 @@ module CleanRm
           @home_trashcan
         end
       end
-    rescue Timeout::Error
+    rescue
       error "#{file}: Cannot access"
-       @home_trashcan
+      @home_trashcan
     end
 
     # Return name of FILE with timestamp + 3-digit index appended.
