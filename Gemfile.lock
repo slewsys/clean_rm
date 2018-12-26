@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     clean_rm (2.3.3)
-      ffi (~> 1.9.25)
+      ffi (~> 1.9, >= 1.9.25)
       sys-filesystem (~> 1.1, >= 1.1.9)
 
 GEM

@@ -1,5 +1,10 @@
-sudo: false
+dist: xenial
 language: ruby
 rvm:
   - 2.5.0
-before_install: gem install bundler -v 1.14.5
+sudo: true
+before_install:
+  - gem update --system
+  - gem install bundler -v 1.17.2
+script:
+  - bundle exec rspec spec && gem build clean_rm.gemspec && gem install clean_rm*gem

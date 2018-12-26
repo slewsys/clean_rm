@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/slewsys/clean_rm.svg?branch=master)](https://travis-ci.com/slewsys/clean_rm)
+
 # CleanRm
 
 __CleanRm__ is a Ruby library for managing filesystem trash. Previously
@@ -20,18 +22,14 @@ interfaces `getmntent(3)`/`getmntinfo(3)`.
 To display trashcan contents, a POSIX-compatible `ls(1)` command is expected.
 Its path is defined by constant `Trashcan::LS`.
 
-Per-device trashcans are recommended and used if available. These must
-be created separately and are defined in `Trashcan#trashcan()` to be of
-the form:
-
-```
-_mount-point_/.Trashes/_user-id_,
-```
-
-where _mount-point_ is device's filesystem root, and _user-id_
-is provided by the POSIX `getuid(2)` system call. The _user-id_
-subdirectory does not need to be created separately provided directory
-`_mount-point_/.Trashes/` is world writable, executable and _sticky_.
+Per-device trashcans are used if available and recommended because
+they eliminate the load of moving deleted files across files systems.
+__CleanRm__ attempts to create per-device trashcans as needed.
+Otherwise, they can be created manually, as defined in
+`Trashcan#trashcan()`, of the form _mount-point_`/.Trashes/`,
+where _mount-point_ is device's filesystem root, and the `/.Trashes/`
+sub-directory permissions must be world writable, executable and
+_sticky_.
 
 ## Command-line Interface
 
