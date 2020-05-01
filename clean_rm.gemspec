@@ -36,7 +36,7 @@ Command-line utility `trash' is intended as a cross-platform, option-compatible 
   spec.add_dependency "sys-filesystem", "~> 1.2"
 
   spec.add_development_dependency "bundler", "~> 2.0", ">= 2.0.2"
-  spec.add_development_dependency "rake", "~> 12.3"
+  spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec-expectations", "~> 3.8"
   spec.add_development_dependency "rspec", "~> 3.8"
 end
