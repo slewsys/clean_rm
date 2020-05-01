@@ -31,6 +31,32 @@ where _mount-point_ is device's filesystem root, and the `/.Trashes/`
 sub-directory permissions must be world writable, executable and
 _sticky_.
 
+## Installation
+With a recent version of the [Ruby](https://www.ruby-lang.org/en/)
+interpreter installed (e.g., ruby 2.5), run the following commands
+from a Unix shell:
+
+```bash
+git clone git@github.com:slewsys/clean_rm.git
+cd clean_rm
+sudo gem update --system
+bundle
+rake build
+gem install pkg/clean_rm*.gem
+```
+
+The RSpec test suite can be run with:
+
+```bash
+bundle exec rspec spec
+```
+
+To build RDoc documentation, use:
+
+```bash
+rake rdoc
+```
+
 ## Command-line Interface
 
 ```
