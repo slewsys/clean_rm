@@ -7,8 +7,8 @@ module Console
 
   def respond(*args)
     if $stdout.isatty
-      args.each do |arg|
-        puts  arg =~ /^\/.*:$/ ? "#{TRASHCAN_COLOR}#{arg}#{RESET_COLOR}" : arg
+      args.each do |a|
+        puts(a.to_s =~ /^\/.*:$/ ? "#{TRASHCAN_COLOR}#{a}#{RESET_COLOR}" : a)
       end
     else
       puts(args)
