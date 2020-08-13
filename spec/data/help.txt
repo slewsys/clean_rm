@@ -1,6 +1,6 @@
 Usage: trash [-dfiPpRrW] FILE ...
        trash -e [-fiP] [FILE ...]
-       trash -l [FILE ...]
+       trash -l [-R] [FILE ...]
 Options:
     -d, --directory    Transfer empty directories as well as other file types
                        to the trashcan.
@@ -17,8 +17,8 @@ Options:
     -P, --overwrite    Overwrite regular FILEs before purging. The -P option
                        implies option -p.
     -p, --purge        Purge FILEs so that they cannot be restored.
-    -R, --recursive    Recursively transfer directory hierarchies to the
-                       trashcan. The -R option supersedes option -d.
+    -R, --recursive    Recursively list or transfer directory hierarchies.
+                       The -R option supersedes option -d.
     -r                 Equivalent to option -R.
     -V, --version      Show version, then exit.
     -v, --verbose      Report diagnostics.

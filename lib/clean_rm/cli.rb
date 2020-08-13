@@ -28,7 +28,7 @@ module CleanRm
       parser = OptionParser.new(nil, 18) do |opts|
         opts.banner = "Usage: #{$script_name} [-dfiPpRrW] FILE ...\n"
         opts.banner += "       #{$script_name} -e [-fiP] [FILE ...]\n"
-        opts.banner += "       #{$script_name} -l [FILE ...]\n"
+        opts.banner += "       #{$script_name} -l [-R] [FILE ...]\n"
         opts.separator "Options:"
 
         opts.on("-d", "--directory",
@@ -84,8 +84,8 @@ module CleanRm
         end
 
         opts.on("-R", "--recursive",
-                "Recursively transfer directory hierarchies to the
-                       trashcan. The -R option supersedes option -d.") do
+                "Recursively list or transfer directory hierarchies.
+                       The -R option supersedes option -d.") do
           @option.merge!(recursive: true, directory: false)
         end
 

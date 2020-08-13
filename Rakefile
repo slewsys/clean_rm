@@ -9,4 +9,5 @@ task :default => :spec
 RDoc::Task.new do |rdoc|
   rdoc.main = "README.md"
   rdoc.rdoc_files.include("lib/ *.rb")
+  rdoc.rdoc_files.exclude("spec/ *.rb")
 end

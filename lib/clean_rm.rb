@@ -46,60 +46,54 @@ module CleanRm
     using StatSymlink
 
     # Path of POSIX-compatible `ls' command.
-    LS = case RbConfig::CONFIG['target_os']
-         when /bsd|darwin|linux-gnu/
-           '/bin/ls'
-         else
-           '/bin/ls'
-         end
+    LS = '/bin/ls'
 
     # Path of POSIX-compatible `mkdir' command.
-    MKDIR = case RbConfig::CONFIG['target_os']
-         when /bsd|darwin|linux-gnu/
-           '/bin/mkdir'
-         else
-           '/bin/mkdir'
-         end
+    MKDIR = '/bin/mkdir'
 
     # Path of POSIX-compatible `chown' command.
     CHOWN = case RbConfig::CONFIG['target_os']
          when /bsd|darwin/
            '/usr/sbin/chown'
-         when /linux-gnu/
+         when /linux|linux-gnu/
            '/bin/chown'
          else
            '/usr/sbin/chown'
          end
 
     # Path of POSIX-compatible `chmod' command.
-    CHMOD = case RbConfig::CONFIG['target_os']
-         when /bsd|darwin|linux-gnu/
-           '/bin/chmod'
-         else
-           '/bin/chmod'
-         end
+    CHMOD = '/bin/chmod'
 
     # Path of privilege escalation command `sudo'.
     SUDO = case RbConfig::CONFIG['target_os']
-         when /bsd/
-           '/usr/local/bin/sudo'
-         when /darwin|linux-gnu/
-           '/usr/bin/sudo'
-         else
-           '/usr/local/bin/sudo'
-         end
+           when /bsd/
+             '/usr/local/bin/sudo'
+           when /darwin|linux|linux-gnu/
+             '/usr/bin/sudo'
+           else
+             '/usr/local/bin/sudo'
+           end
 
     # Path of trashcan relative to user HOME directory.
     TRASH = case RbConfig::CONFIG['target_os']
             when /darwin/
               '.Trash'
+            when /linux|linux-gnu/
+              ENV['XDG_DATA_HOME'] || '.local/share/Trash/files'
             else
-              '.local/share/Trash'
+              ENV['XDG_DATA_HOME'] || '.local/share/Trash/files'
             end
 
     # Path of per-device trashcans relative device mount point.
     # See instance method #trashcan for complete path derivation.
-    TRASHES = '.Trashes'
+    TRASHES = case RbConfig::CONFIG['target_os']
+              when /darwin/
+                '.Trashes'
+              when /linux|linux-gnu/
+                '.Trash'
+              else
+                '.Trash'
+              end
 
     # Seconds before file access times out.
     FILE_ACCESS_TIMEOUT = 10
@@ -140,9 +134,11 @@ module CleanRm
       @found = []
       count = 0
       per_device_trashcan.values.uniq.each do |trash_dir|
-        Dir.chdir(trash_dir) do
-          expand_toplevel(filenames).each do |file|
-            count += unlink(file)
+        if Dir.exists?(trash_dir)
+          Dir.chdir(trash_dir) do
+            expand_toplevel(filenames).each do |file|
+              count += unlink(file)
+            end
           end
         end
       end
@@ -156,26 +152,29 @@ module CleanRm
       @request = request
       @found = []
       count = 0
+      options = @request[:recursive] ? '-alR' : '-ald'
       per_device_trashcan.values.uniq.each do |trash_dir|
-        Dir.chdir(trash_dir) do
-          unless (toplevel_files = expand_toplevel(filenames)).empty?
+        if Dir.exists?(trash_dir)
+          Dir.chdir(trash_dir) do
+            unless (toplevel_files = expand_toplevel(filenames)).empty?
 
-            # If any toplevel_files have dash (-) prefix, LS
-            # interprets them as command-line switches. Therefore,
-            # prefix these with `./' and then filter `./' on output.
-            begin
-              IO.popen([LS, '-ald', *toplevel_files.map { |f| './' + f }],
-                       :err => [:child, :out]) do |io|
-                respond "#{trash_dir}:"
-                respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
-              end
-              count += toplevel_files.size
-            rescue SystemCallError => err
-              case err
-              when Errno::ENOENT
-                error "#{LS}: No such file or directory"
-              else
-                raise
+              # If any toplevel_files have dash (-) prefix, LS
+              # interprets them as command-line switches. Therefore,
+              # prefix these with `./' and then filter `./' on output.
+              begin
+                IO.popen([LS, options, *toplevel_files.map { |f| './' + f }],
+                         :err => [:child, :out]) do |io|
+                  respond "#{trash_dir}:"
+                  respond io.readlines.map { |l| l.sub(/ \.\//, ' ') }
+                end
+                count += toplevel_files.size
+              rescue SystemCallError => err
+                case err
+                when Errno::ENOENT
+                  error "#{LS}: No such file or directory"
+                else
+                  raise
+                end
               end
             end
           end
@@ -191,10 +190,12 @@ module CleanRm
       @found = []
       count = 0
       per_device_trashcan.values.uniq.each do |trash_dir|
-        Dir.chdir(trash_dir) { expand_toplevel(filenames) }.each do |file|
-          next if (File.exists?(file) || File.symlink?(file)) &&
-            ! shift_revision(file)
-          count += pop_revision(file, trash_dir)
+        if Dir.exists?(trash_dir)
+          Dir.chdir(trash_dir) { expand_toplevel(filenames) }.each do |file|
+            next if (File.exists?(file) || File.symlink?(file)) &&
+                    ! shift_revision(file)
+            count += pop_revision(file, trash_dir)
+          end
         end
       end
       report_not_found(filenames)
@@ -324,7 +325,7 @@ module CleanRm
       count = 0
       if (request[:force] || ! request[:interactive] ||
           confirm('Move to trash', file))
-        trash_dir = trashcan(file)
+        trash_dir = trashcan(file, create: true)
         basename = File.basename(file)
         Dir.chdir(trash_dir) do
           FileUtils.mv(basename, unique_name(basename)) \
@@ -394,7 +395,7 @@ module CleanRm
       # Confirm overwriting even if not request[:interative].
       if ((request[:force] || have_transfer_permission(file) &&
            confirm('Overwrite existing', file)))
-        trash_dir = trashcan(file)
+        trash_dir = trashcan(file, create: true)
         rev = Dir.chdir(trash_dir) do
           unique_name(File.basename(file))
         end
@@ -417,26 +418,34 @@ module CleanRm
 
     # Return trashcan of device on which FILE resides, otherwise
     # @home_trashcan.
-    def trashcan(file)
+    def trashcan(file, create: false)
       mount_point = mount_point(file)
+
+      # File in home folder
+      if /^#{Dir.home}/ =~ File.expand_path(file)
+
+        # Use @home_trashcan if mount point not below home folder.
+        return @home_trashcan if /^#{mount_point}/ =~ Dir.home
+      end
+
       trashes_dir = File.join(mount_point, TRASHES)
       trash_dir = File.join(trashes_dir, @uid.to_s)
+      trash_dir = File.join(trash_dir, 'files') \
+        if /darwin/ !~ RbConfig::CONFIG['target_os']
 
       # Missing TRASHES_DIR...
-      # NB: Prevent macOS from creating  `/dev/.Trashes'.
-      if ! Dir.exists?(trashes_dir) && mount_point != '/dev'
+      # NB: Don't make  `.Trash' directory on special file systems.
+      if ! Dir.exists?(trashes_dir) && create &&
+         /^\/(boot|dev|proc|run|snap|sys|tmp|var)/ !~ mount_point
         begin
           Timeout::timeout(FILE_ACCESS_TIMEOUT) do
 
             # so try creating it.
             if @uid.zero?
-              Dir.mkdir(trashes_dir)
-              File.chown(0, 0, trashes_dir)
-              File.chmod(01333, trashes_dir)
+              FileUils.mkdir(trashes_dir, mode: 01333)
             elsif File.executable?(SUDO)
               IO.mute($stderr, $stdin) do
                 system SUDO, '-p', '', '-S', MKDIR, trashes_dir
-                system SUDO, '-p', '', '-S', CHOWN, '0:0', trashes_dir
                 system SUDO, '-p', '', '-S', CHMOD, '1333', trashes_dir
               end
             end
@@ -461,7 +470,7 @@ module CleanRm
             File.executable?(trashes_dir) &&
             File.sticky?(trashes_dir))
           begin
-            Dir.mkdir(trash_dir, 0700)
+            FileUtils.mkdir_p(trash_dir, mode: 0700)
             trash_dir
           rescue SystemCallError
             # File.open(trash_dir) { |dir| dir.chmod(0700) }

@@ -2,10 +2,26 @@
 
 # CleanRm
 
-__CleanRm__ is a Ruby library for managing filesystem trash. Previously
-"deleted" versions of a file can be restored in reverse order of
-deletion. Each restore iteration replaces the current file with an older
-version until there are no more, then the newest version is restored again.
+__CleanRm__ is a Ruby library for managing filesystem trash. When a
+file is deleted, it's moved to a directory from where it can later be
+restored. Files residing in a user's home directory are moved to
+`${XDG_DATA_HOME}/Trash` (or `${HOME}/.Trash` on OS X). To avoid
+moving across file systems, files outside a user's home directory are
+moved to a `.Trash` (or `.Trashes` on OS X) directory created in the
+root of the file system containing the file. In the event that such a
+trash directory does not exist and cannot be created, then a user's
+home trash directory is used instead. On freedesktop.org systems,
+presently no attempt is made to create `.Trash-$uid` if a top-level
+`.Trash` directory cannot be used.
+
+Previously "deleted" versions of a file can be restored in reverse
+order of deletion. Each restore iteration replaces the current file
+with an older version until there are no more, then the newest version
+is restored again.
+
+Options are available for listing deleted files, prompting before
+every removal and permanently removing files, with or without random
+overwrites.
 
 Command-line utility `trash` (described below) is intended as a
 cross-platform, option-compatible alternative to the Unix `rm(1)` command.
@@ -37,12 +53,12 @@ interpreter installed (e.g., ruby 2.5), run the following commands
 from a Unix shell:
 
 ```bash
-git clone git@github.com:slewsys/clean_rm.git
+git clone https://github.com/slewsys/clean_rm.git
 cd clean_rm
 sudo gem update --system
 bundle
 rake build
-gem install pkg/clean_rm*.gem
+sudo gem install pkg/clean_rm*.gem
 ```
 
 The RSpec test suite can be run with:
@@ -61,8 +77,8 @@ rake rdoc
 
 ```
 Usage: trash [-dfiPpRrW] FILE ...
-       trash -e [-fiP] [FILE] ...
-       trash -l [FILE] ...
+       trash -e [-fiP] [FILE ...]
+       trash -l [-R] [FILE ...]
 Options:
     -d, --directory    Transfer empty directories as well as other file types
                        to the trashcan.
@@ -79,8 +95,8 @@ Options:
     -P, --overwrite    Overwrite regular FILEs before purging. The -P option
                        implies option -p.
     -p, --purge        Purge FILEs so that they cannot be restored.
-    -R, --recursive    Recursively transfer directory hierarchies to the
-                       trashcan. The -R option supersedes option -d.
+    -R, --recursive    Recursively list or transfer directory hierarchies.
+                       The -R option supersedes option -d.
     -r                 Equivalent to option -R.
     -V, --version      Show version, then exit.
     -v, --verbose      Report diagnostics.

@@ -4,13 +4,15 @@ require 'spec_helper'
 
 RSpec.describe CleanRm do
   before(:all) do
-    FileUtils.rm_rf ['.1', '1', '2', 'link-to-foobar', 'testing 123', '*[123]*{}']
+    FileUtils.rm_rf ['.1', '1', '2', 'link-to-foobar', 'link-to-date', 'testing 123', '*[123]*{}']
   end
 
 
   after(:all) do
-    FileUtils.rm_rf ['.1', '1', '2', 'link-to-foobar', 'testing 123', '*[123]*{}']
+    FileUtils.rm_rf ['.1', '1', '2', 'link-to-foobar', 'link-to-date', 'testing 123', '*[123]*{}']
   end
+
+  trash '-ef'
 
   context 'command-line options' do
     it 'prints a version number' do
@@ -194,4 +196,6 @@ RSpec.describe CleanRm do
       expect(File.exists?('*[123]*{}')).to eq(false)
     end
   end
+
+  trash '-ef'
 end
